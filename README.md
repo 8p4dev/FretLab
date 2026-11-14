@@ -29,7 +29,14 @@ npm run check      # typecheck + lint + self-checks
 
 ## Deploy (GitHub Pages)
 
-Pushing to `main` runs `.github/workflows/pages.yml`, which builds with `BASE_PATH=/<repo>/` and publishes `dist/`. In the repository settings set **Pages → Source → GitHub Actions**. For a custom domain, build with `BASE_PATH=/`.
+The site is served from the `gh-pages` branch (Settings → Pages → Source → Deploy from a branch → `gh-pages`). To publish a new build:
+
+```sh
+BASE_PATH=/FretLab/ npm run build      # PowerShell: $env:BASE_PATH='/FretLab/'; npm run build
+cd dist && git init -b gh-pages && git add -A && git commit -m "pages" && git push -f <repo-url> gh-pages
+```
+
+`.github/workflows/pages.yml` does the same on every push to `main` once Pages → Source is switched to **GitHub Actions**. For a custom domain, build with `BASE_PATH=/`.
 
 ## Stack
 
