@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "settings": { "react": { "version": "18" } },
+  "rules": {
+    "react/rules-of-hooks": "error"
+  }
+}

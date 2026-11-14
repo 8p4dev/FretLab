@@ -1,0 +1,32 @@
+/* 선택 UI — 토큰만, 배치 전용. 버튼·.seg·.sheet·input 모양은 index.css 전역 규칙 (F 소유) */
+.scale-bar { justify-content: space-between; gap: .5rem; max-width: 100%; text-align: left; }
+.scale-bar-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.scale-bar > svg { flex: none; color: var(--muted); }
+/* compact(그립 오버레이): 한 줄, 작은 글자 */
+.scale-bar[data-compact] { min-height: 0; padding: .25rem .5rem; font-size: var(--fs-xs); font-weight: 600; }
+
+.picker { display: flex; flex-direction: column; gap: .5rem; }
+.picker h3 { margin: .5rem 0 0; font-size: var(--fs-xs); font-weight: 600; letter-spacing: .02em; }
+.picker-group h3 { margin-top: .25rem; }
+
+/* 루트 12칸: 6×2, 선택 = 반전 */
+.picker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: .25rem; }
+.picker-grid > button { padding-inline: 0; font-variant-numeric: tabular-nums; }
+.picker-grid > button[aria-pressed='true'], .picker-list > button[aria-pressed='true'] { color: var(--bg); background: var(--text); border-color: var(--text); }
+
+/* 스케일 목록: 한글 + 영문 작게, 넓은 화면은 2열 */
+.picker-list { display: grid; grid-template-columns: 1fr; gap: .25rem; }
+@media (min-width: 560px) { .picker-list { grid-template-columns: 1fr 1fr; } }
+.picker-list > button { justify-content: space-between; text-align: left; }
+.picker-list > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-list > button > small { flex: none; font-size: var(--fs-xs); font-weight: 500; color: var(--muted); }
+.picker-list > button[aria-pressed='true'] > small { color: inherit; opacity: .8; }
+
+/* 옵션 행: 라벨 왼쪽 · 컨트롤 오른쪽, 좁으면 줄바꿈 */
+.picker-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem .75rem; min-height: var(--tap); font-size: var(--fs-sm); font-weight: 550; }
+.picker-row > select { flex: 1 1 12rem; min-width: 0; }
+.picker-row > input[type='range'] { flex: 1 1 10rem; min-height: var(--tap); margin: 0; accent-color: var(--text); }
+.picker-row > input[type='range']:disabled { opacity: .4; }
+.picker-check { justify-content: flex-start; gap: .5rem; cursor: pointer; }
+.picker-segs { display: flex; flex-wrap: wrap; gap: .5rem; }
+.picker .seg > button { padding-inline: .6rem; }
