@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { FretPos, FretState, Mark, StudyMode } from '../../core/types'
 import { posKey } from '../../core/types'
 import { patchSettings, useSettings } from '../../core/settings'
-import { midiAt, positions, scaleById, tuningById } from '../../core/music'
+import { labelOf, midiAt, positions, scaleById, tuningById } from '../../core/music'
 import { playNote, playSequence } from '../../core/audio'
 import { href } from '../../router'
 import { haptic } from '../feel'
@@ -11,13 +11,14 @@ import { Fretboard } from '../fretboard/Fretboard'
 import { ScaleBar, OptionsButton } from '../picker/ScaleBar'
 import { I } from '../../ui/icons'
 import { Icon } from '../../ui/Icon'
-import { fretWindows, useFill, useFollow } from './logic'
+import { followOrder, fretWindows, swipeDir, useFill, useFollow } from './logic'
 import { recordResult, statsFor, statsKey, statsLine } from './stats'
 import './study.css'
 
 const MODES: { m: StudyMode; label: string }[] = [{ m: 'view', label: '보기' }, { m: 'fill', label: '채우기' }, { m: 'follow', label: '따라치기' }]
 const GAP_MS = 220
 const NARROW = '(max-width: 760px)'
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** ≤760 폭이면 true(프렛 창 분할 기준, study.css 의 모바일 분기와 같은 값) */
 function useNarrow(): boolean {
@@ -70,28 +71,39 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
 
   const grade = () => {
     const r = fill.grade()
+    haptic('success')
     recordResult(key, { correct: r.hit, total: marks.length })
   }
   const onTap = (p: FretPos) => {
     if (mode === 'view') {
-      if (marks.some((m) => m.string === p.string && m.fret === p.fret)) playNote(midiAt(tuning, p))
-    } else if (mode === 'fill') fill.toggle(p)
+      if (marks.some((m) => m.string === p.string && m.fret === p.fret)) { playNote(midiAt(tuning, p)); haptic('tap') }
+    } else if (mode === 'fill') { fill.toggle(p); haptic('tap') }
     else if (!follow.done) {
       const r = follow.tap(p)
       if (r === 'miss') { haptic('warn'); setShake(true); setTimeout(() => setShake(false), 300); return }
       playNote(midiAt(tuning, p)); haptic('tap')
-      if (r === 'done') recordResult(key, { correct: follow.total, total: follow.total + follow.wrong })
+      if (r === 'done') {
+        recordResult(key, { correct: follow.total, total: follow.total + follow.wrong })
+        haptic('success')
+        // 완주 아르페지오(루트·5도·옥타브): 마지막 음과 겹치지 않게 한 박 뒤
+        const r0 = marks.find((m) => m.root)?.midi
+        if (r0 !== undefined) setTimeout(() => playSequence([r0, r0 + 7, r0 + 12], 120), GAP_MS)
+      }
     }
   }
   const retry = () => { fill.reset(); follow.reset() }
 
-  // 키보드(PC): Enter = 채점/다시, ←/→ = 포지션
+  // 키보드(PC): Enter = 채점/다시, ←/→ = 포지션, 1~9 = 포지션 n, Space = 들어보기(보기), Esc = 들어보기 중지
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       if (t && (t.closest('input, textarea, select, [contenteditable], [role=dialog]'))) return
+      const digit = e.key.length === 1 && e.key >= '1' && e.key <= '9' ? Number(e.key) : 0
       if (e.key === 'ArrowLeft' && all.length > 1) { e.preventDefault(); go(-1) }
       else if (e.key === 'ArrowRight' && all.length > 1) { e.preventDefault(); go(1) }
+      else if (digit && s.system !== 'full' && digit <= all.length) patchSettings({ position: digit - 1 })
+      else if (e.key === ' ' && mode === 'view') { e.preventDefault(); listen() }
+      else if (e.key === 'Escape' && playIdx >= 0) stopListen()
       else if (e.key === 'Enter' && mode !== 'view') {
         e.preventDefault()
         if (mode === 'fill') { if (fill.graded) retry(); else if (fill.picked.size) grade() }
@@ -124,6 +136,24 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
   }, [targetKey, wins])
   const goWin = (d: number) => setWin((wi + d + wins.length) % wins.length)
 
+  // 보드 스와이프(터치·펜, 한 손가락): 가로 80px 이상이면 창 → 없으면 포지션 이동. 채우기(채점 전)는 드래그 선택과 충돌하므로 끈다
+  const drag = mode === 'fill' && !fill.graded
+  const ptrs = useRef(new Map<number, { x: number; y: number }>())
+  const onBoardDown = (e: PointerEvent) => { if (e.pointerType !== 'mouse') ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY }) }
+  const onBoardUp = (e: PointerEvent) => {
+    const st = ptrs.current.get(e.pointerId)
+    ptrs.current.delete(e.pointerId)
+    if (!st || ptrs.current.size > 0) return // 한 손가락만
+    const d = swipeDir(e.clientX - st.x, e.clientY - st.y)
+    if (!d) return
+    if (wins.length > 1) goWin(d)
+    else if (all.length > 1) go(d)
+  }
+  const boardEvents = drag ? {} : { onPointerDown: onBoardDown, onPointerUp: onBoardUp, onPointerCancel: onBoardUp }
+
+  // 따라치기 다음 음(U12): string 0 = 가장 낮은 줄 → n번줄
+  const target = mode === 'follow' && !follow.done ? followOrder(marks)[follow.idx] : undefined
+
   const finished = mode === 'fill' ? fill.graded : mode === 'follow' && follow.done
   const nextPos = all.length > 1 && <button type="button" onClick={() => go(1)}>다음 포지션<Icon d={I.arrowRight} /></button>
 
@@ -154,8 +184,8 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
         </div>
       )}
 
-      <div className={`study-board${shake ? ' shake' : ''}`}>
-        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} view={s.view} tilt={s.tilt} onTap={onTap} />
+      <div className={`study-board${shake ? ' shake' : ''}`} {...boardEvents}>
+        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} view={s.view} tilt={s.tilt} onTap={onTap} drag={drag} />
       </div>
 
       {mode === 'fill' && fill.result && <Summary title="채점 결과" nums={[['맞음', fill.result.hit, 'ok'], ['틀림', fill.result.miss, 'danger'], ['놓침', fill.result.missing]]} line={statsLine(stat)} />}
@@ -171,11 +201,15 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
           </button>
         )}
         {mode === 'fill' && !fill.graded && <>
+          <span className="study-progress tnum muted">찍음 <strong>{fill.picked.size}</strong> / 정답 {marks.length}</span>
           <button type="button" disabled={!fill.picked.size} onClick={fill.reset}><Icon d={I.rotateCcw} />초기화</button>
           <button type="button" className="primary" disabled={!fill.picked.size} onClick={grade}><Icon d={I.checkCheck} />채점</button>
         </>}
         {mode === 'follow' && !follow.done && <>
-          <span className="study-progress tnum muted"><strong>{follow.idx}</strong> / {follow.total}{follow.wrong > 0 && <> · 틀림 {follow.wrong}</>}</span>
+          <span className="study-progress tnum muted">
+            <strong>{follow.idx}</strong> / {follow.total}{follow.wrong > 0 && <> · 틀림 {follow.wrong}</>}
+            {target && <> · 다음 <strong>{labelOf(target, s.labelMode === 'none' ? 'note' : s.labelMode, s.accidental)}</strong> · {tuning.strings.length - target.string}번줄</>}
+          </span>
           <button type="button" disabled={!follow.idx} onClick={retry}><Icon d={I.rotateCcw} />다시</button>
         </>}
         {finished && <>
@@ -183,14 +217,24 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
           {nextPos}
         </>}
       </div>
+      <p className="study-kbd muted">{kbdHint(mode, s.system !== 'full' && all.length > 1)}</p>
     </div>
   )
 }
 
+/** PC 단축키 안내(모드에 맞는 것만). 표시 여부는 study.css 의 hover+폭 미디어쿼리 */
+function kbdHint(mode: StudyMode, hasPos: boolean): string {
+  const items = [mode === 'fill' && 'Enter 채점·다시', mode === 'follow' && 'Enter 다시', hasPos && '← → 포지션', mode === 'view' && 'Space 들어보기', hasPos && '1–9 포지션']
+  return items.filter(Boolean).join(' · ')
+}
+
 /** 요약 카드(DrillDown .flash-summary): 숫자가 주인공 */
 function Summary({ title, nums, line }: { title: string; nums: [string, number, ('ok' | 'danger')?][]; line: string }) {
+  // 마운트 때 뷰포트 안으로(390 에서는 프렛보드 아래라 화면 밖일 수 있다)
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => { ref.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' }) }, [])
   return (
-    <section className="study-summary card" aria-label={title}>
+    <section ref={ref} className="study-summary card" aria-label={title}>
       <h2>{title}</h2>
       <p className="study-summary-nums">
         {nums.map(([label, n, tone]) => <span key={label} className={tone}><strong>{n}</strong>{label}</span>)}

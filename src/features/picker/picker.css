@@ -30,3 +30,10 @@
 .picker-check { justify-content: flex-start; gap: .5rem; cursor: pointer; }
 .picker-segs { display: flex; flex-wrap: wrap; gap: .5rem; }
 .picker .seg > button { padding-inline: .6rem; }
+
+/* 2차: 스케일 구성 줄(1 b3 4 5 b7 · A C D E G) — 좁으면 줄바꿈 */
+.picker-formula { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+/* 슬라이더 값: 폭 고정(값이 바뀌어도 range 폭이 흔들리지 않게) */
+.picker-row > output { flex: none; min-width: 3ch; text-align: right; font-size: var(--fs-xs); }
+/* 기본값으로: 시트 맨 아래 오른쪽 */
+.picker-reset { align-self: flex-end; margin-top: .5rem; min-height: var(--tap); }

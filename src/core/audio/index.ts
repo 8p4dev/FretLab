@@ -42,7 +42,12 @@ function setup(c: AudioContext): void {
 /** 첫 사용자 제스처(pointerdown 등)에서 호출 — AudioContext 생성·resume. 여러 번 불러도 안전 */
 export function unlockAudio(): void {
   if (typeof AudioContext === 'undefined') return
-  if (!ctx) { ctx = new AudioContext(); setup(ctx) }
+  if (!ctx) {
+    ctx = new AudioContext({ latencyHint: 'interactive' })
+    setup(ctx)
+    // 탭 밖에 갔다 오면 suspended 일 수 있다(iOS) — 보이면 다시 켠다
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx?.state !== 'running') void ctx?.resume().catch(() => {}) })
+  }
   if (ctx.state !== 'running') void ctx.resume().catch(() => {})
 }
 

@@ -4,6 +4,7 @@
 .fretboard .fb-stage { width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform var(--t-slow) var(--ease-out); }
 .fretboard svg { display: block; width: 100%; height: auto; max-height: 45vh; /* QA #3: 좁은 포지션 창이 1440×900 에서 행동 바를 밀어내지 않게 (60vh → 45vh) */ overflow: visible; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .fretboard.fill svg { height: 100%; max-height: none; touch-action: none; } /* QA #2: fill(그립)은 60vh 에 갇히지 않게 */
+.fretboard[data-drag] svg { touch-action: none; } /* U4: 쓸어 찍기 중 스크롤 금지 */
 .fretboard text { font-family: inherit; text-anchor: middle; pointer-events: none; }
 
 /* 넥 */
@@ -12,15 +13,16 @@
 .fb-string { stroke: var(--text-2); stroke-linecap: butt; }
 .fb-dot { fill: var(--border); }
 .fb-num { fill: var(--muted); }
+.fretboard .fb-string-name { fill: var(--muted); text-anchor: end; } /* U1: `.fretboard text` 보다 우선 */
 
-/* 마크: 일반 = surface + border-strong, 루트 = 반전 */
-.fb-mark { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.5; pointer-events: none; }
+/* 마크: 일반 = surface + border-strong, 루트 = 반전. U3: 색 전환 */
+.fb-mark { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.5; pointer-events: none; transition: fill var(--t-fast), stroke var(--t-fast); transform-box: fill-box; transform-origin: center; }
 .fb-mark.root { fill: var(--text); stroke: var(--text); }
 .fb-label { fill: var(--text); font-weight: 600; }
 .fb-label.root { fill: var(--bg); }
 
 /* states (학습 모드) */
-.fb-mark.st-hit { fill: var(--ok); stroke: var(--ok); }
+.fb-mark.st-hit { fill: var(--ok); stroke: var(--ok); animation: pop var(--t-med) var(--ease-out); }
 .fb-mark.st-miss { fill: var(--danger); stroke: var(--danger); }
 .fb-label.st-hit, .fb-label.st-miss { fill: var(--on-fill); }
 .fb-mark.st-picked { fill: var(--text-2); stroke: var(--text-2); }
@@ -30,15 +32,23 @@
 /* reduced-motion 은 index.css 전역 규칙(iteration-count 1)으로 정적 */
 @keyframes fb-pulse { from { stroke-opacity: 1; } to { stroke-opacity: .35; } }
 
+/* U2 눌림: 마크는 튀어오르고, 마크 없는 자리는 셀이 잠깐 어두워진다 */
+.fb-mark.pressed { animation: fb-press var(--t-fast) var(--ease-out); }
+.fb-cell.pressed { fill: color-mix(in srgb, var(--text) 10%, transparent); }
+@keyframes fb-press { from { transform: scale(1.15); } to { transform: scale(1); } }
+
 /* 탭 셀: 맨 위 투명 레이어 */
-.fb-cell { fill: transparent; pointer-events: all; }
+.fb-cell { fill: transparent; pointer-events: all; transition: fill var(--t-fast); }
+/* U5 PC 호버 */
+.fretboard[data-tap] .fb-cell { cursor: pointer; }
+@media (hover: hover) { .fb-cell:hover { fill: color-mix(in srgb, var(--text) 6%, transparent); } }
 
 /* 연주자 시점: 낮은 줄(아래)이 눈에 가깝게 — 하단 축으로 눕힌다 */
 .fretboard[data-view='player'] .fb-stage {
   transform: perspective(1100px) rotateX(calc(var(--tilt) * 55deg)) rotateY(calc(var(--tilt) * -8deg)) rotateZ(calc(var(--tilt) * -3deg));
 }
 /* 눌림 보정: 마크·글자를 세로로 늘려 화면에서 정사각에 가깝게 */
-.fretboard[data-view='player'] .fb-mark, .fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-num {
+.fretboard[data-view='player'] .fb-mark, .fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-num, .fretboard[data-view='player'] .fb-string-name {
   transform-box: fill-box; transform-origin: center; transform: scaleY(calc(1 + var(--tilt) * .6));
   transition: transform var(--t-slow) var(--ease-out);
 }

@@ -112,3 +112,10 @@ export function useFollow(marks: Mark[]): {
   const reset = () => setSt(followInit(sig))
   return { idx: cur.idx, total: order.length, wrong: cur.wrong, done: cur.idx >= order.length, tap, reset, states: followStates(order, cur.idx, cur.missKey) }
 }
+
+// ── 스와이프(순수) ────────────────────────────────────────────────────────────
+/** 한 손가락 이동(dx, dy) 을 가로 스와이프로 볼지: 가로 min 이상이고 세로보다 크면 방향(-1 = 왼쪽, 1 = 오른쪽), 아니면 0(탭·스크롤) */
+export function swipeDir(dx: number, dy: number, min = 80): -1 | 0 | 1 {
+  if (Math.abs(dx) < min || Math.abs(dy) > Math.abs(dx)) return 0
+  return dx < 0 ? -1 : 1
+}

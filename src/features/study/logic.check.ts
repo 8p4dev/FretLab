@@ -1,7 +1,7 @@
 // 자가 검사 — 훅 밖 순수 리듀서. 실행: npx tsx src/features/study/logic.check.ts (package.json 은 건드리지 않음 — agent_D_study.md)
 import { posKey } from '../../core/types'
 import type { Mark } from '../../core/types'
-import { fillStates, followOrder, followStates, followTap, fretWindows, gradeFill } from './logic'
+import { fillStates, followOrder, followStates, followTap, fretWindows, gradeFill, swipeDir } from './logic'
 import { recordResult, statsFor, statsKey, statsLine } from './stats'
 
 // tsconfig 에 node 타입이 없어(vite/client 만) 작은 assert 를 둔다
@@ -54,6 +54,13 @@ const marks = [mk(1, 7), mk(0, 5, true), mk(0, 8), mk(1, 5), mk(2, 7)]
   assert.deepEqual(fretWindows([0, 12]), [[0, 6], [7, 12]])
   assert.deepEqual(fretWindows([0, 24]), [[0, 8], [9, 17], [18, 24]])
   for (const w of fretWindows([0, 22])) assert.ok(w[1] - w[0] + 1 <= 9, '창은 9칸 이하')
+}
+
+// ── 스와이프: 가로 80 이상 + 세로보다 커야 방향, 아니면 0 ──
+{
+  assert.equal(swipeDir(-120, 10), -1); assert.equal(swipeDir(120, -10), 1); assert.equal(swipeDir(80, 0), 1)
+  assert.equal(swipeDir(79, 0), 0, '80 미만은 탭'); assert.equal(swipeDir(100, 150), 0, '세로가 크면 스크롤'); assert.equal(swipeDir(0, 0), 0)
+  assert.equal(swipeDir(-50, 0, 40), -1, 'min 조정')
 }
 
 // ── 기록(localStorage 없음 → 메모리) ──

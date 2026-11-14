@@ -1,14 +1,15 @@
 // 그립 모드 — 가로 전체화면, 폰을 넥처럼 잡고 누른다 (에이전트 E 소유). plan: docs/plans/agent_E_grip.md
 // 흐름: [시작](사용자 제스처) → 전체화면·가로 잠금·Wake Lock(전부 실패 무시) → 4~5프렛 창을 가득 채운 프렛보드 + 위쪽 얇은 오버레이.
 // ESC 로 전체화면이 풀리면 시작 화면으로 돌아간다. 세로로 들면 프렛보드 대신 "가로로 돌려 주세요".
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+// 2차(agent_E_grip_ux.md): 접힌 띠 핸들 · 띠/시작 화면에 OptionsButton · PC ←/→ · 창 이동 haptic · 완료 토스트 소요 시간.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { href } from '../../router'
 import { patchSettings, useSettings } from '../../core/settings'
 import { midiAt, positions, scaleById, tuningById } from '../../core/music'
 import { playNote } from '../../core/audio'
 import { posKey, type FretPos } from '../../core/types'
 import { Fretboard } from '../fretboard/Fretboard'
-import { ScaleBar } from '../picker/ScaleBar'
+import { OptionsButton, ScaleBar } from '../picker/ScaleBar'
 import { useFollow } from '../study/logic'
 import { toast } from '../Toast'
 import { haptic } from '../feel'
@@ -24,6 +25,12 @@ const colsFor = (width: number) => Math.min(5, Math.max(4, Math.floor(width / 15
 // 그립 화면은 한 번에 하나뿐 — 해제 함수·오버레이 타이머는 모듈 변수로 둔다
 let release: (() => void) | null = null
 let hideTimer = 0
+let followT0 = 0 // 따라치기 첫 탭 시각(완료 토스트 소요 시간)
+/** 3초 뒤 띠를 접는다. 시트(옵션·스케일)가 열려 있으면 접지 않고 다시 3초 */
+function armHide(hide: () => void) {
+  clearTimeout(hideTimer)
+  hideTimer = window.setTimeout(() => (document.querySelector('.sheet') ? armHide(hide) : hide()), HIDE_MS)
+}
 
 function useMedia(q: string): boolean {
   const [m, set] = useState(() => matchMedia(q).matches)
@@ -76,10 +83,12 @@ export default function GripPage() {
   if (!active) {
     return (
       <div className="grip grip-intro">
+        <div className="grip-intro-row"><ScaleBar /><OptionsButton /></div>
         <button type="button" className="empty grip-start" onClick={start}>
           <Icon d={I.maximize} size={64} />
           <span>시작 — 가로 전체화면으로 연다</span>
         </button>
+        <p className="grip-help muted">폰을 가로로 눕혀 넥처럼 잡고 프렛을 누르세요 · 띠는 3초 뒤 접힙니다 · ✕ 또는 ESC 로 나가기</p>
         <a href={href.study()}>나가기</a>
       </div>
     )
@@ -109,7 +118,23 @@ function Grip({ portrait, s }: { portrait: boolean; s: S }) {
   useEffect(() => setLo(first), [first, pos.index])
   const lo = Math.min(maxLo, Math.max(0, rawLo))
   const hi = Math.min(lo + cols - 1, s.fretCount)
-  const shift = (d: number) => setLo(Math.min(maxLo, Math.max(0, lo + d)))
+  const shift = useCallback((d: number) => {
+    const next = Math.min(maxLo, Math.max(0, lo + d))
+    if (next === lo) return
+    setLo(next)
+    haptic('tap')
+  }, [lo, maxLo])
+  // PC: ←/→ 로 창 1칸. 시트·입력 안에서는 무시
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.target instanceof Element && e.target.closest('input, select, [role=dialog]')) return
+      e.preventDefault()
+      shift(e.key === 'ArrowLeft' ? -1 : 1)
+    }
+    document.addEventListener('keydown', on)
+    return () => document.removeEventListener('keydown', on)
+  }, [shift])
 
   // 창 안의 마크(따라치기 대상·소리 나는 자리)
   const visible = useMemo(() => pos.marks.filter((m) => m.fret >= lo && m.fret <= hi), [pos, lo, hi])
@@ -136,23 +161,25 @@ function Grip({ portrait, s }: { portrait: boolean; s: S }) {
     if (dragging()) return
     const m = markAt.get(posKey(p))
     if (mode === 'follow') {
+      if (follow.idx === 0 && follow.wrong === 0) followT0 = performance.now() // 새 라운드(모드 전환·창 이동·완료 뒤)의 첫 탭
       const r = follow.tap(p)
       if (r === 'miss') { haptic('warn'); return }
       // 마지막 음은 맞은 것이므로 wrong 은 이 시점 값이 최종값
-      if (r === 'done') { toast(`완료 — 틀림 ${follow.wrong}`); haptic('success'); follow.reset() }
+      if (r === 'done') {
+        toast(`완료 — 틀림 ${follow.wrong} · ${((performance.now() - followT0) / 1000).toFixed(1)}초`)
+        followT0 = 0
+        haptic('success'); follow.reset()
+      }
     } else if (!m) return
     playNote(midiAt(tuning, p))
     haptic('tap')
   }
 
-  // 오버레이: 3초 동안 터치가 없으면 접힘, 위쪽 가장자리 탭으로 펼침
+  // 오버레이: 3초 동안 터치가 없으면 접힘, 위쪽 가장자리 탭으로 펼침. 시트(옵션·스케일)가 열려 있으면 접지 않고 재무장
   const [barShown, setBarShown] = useState(true)
-  const wake = () => {
-    setBarShown(true)
-    clearTimeout(hideTimer)
-    hideTimer = window.setTimeout(() => setBarShown(false), HIDE_MS)
-  }
-  useEffect(() => { wake(); return () => clearTimeout(hideTimer) }, [])
+  const hide = () => setBarShown(false)
+  const wake = () => { setBarShown(true); armHide(hide) }
+  useEffect(() => { armHide(() => setBarShown(false)); return () => clearTimeout(hideTimer) }, [])
 
   const exit = () => { location.hash = href.study() }
 
@@ -174,6 +201,7 @@ function Grip({ portrait, s }: { portrait: boolean; s: S }) {
           </div>
           {mode === 'follow' && <span className="grip-progress tnum muted">{Math.min(follow.idx + 1, follow.total)}/{follow.total}</span>}
           <span className="grip-spacer" />
+          <OptionsButton />
           <button type="button" className="ghost" aria-label={s.muted ? '소리 켜기' : '음소거'} aria-pressed={s.muted}
             onClick={() => patchSettings({ muted: !s.muted })}><Icon d={s.muted ? I.volumeX : I.volume2} size={20} /></button>
           <button type="button" className="ghost" aria-label="나가기" onClick={exit}><Icon d={I.x} size={20} /></button>

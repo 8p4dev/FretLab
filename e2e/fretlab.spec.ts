@@ -1,4 +1,4 @@
-// E2E — orchestration_fretlab.md §5 3. 흐름 3개만: (a) 연습 보기 (b) 채우기 (c) 그립. 빌드 결과를 vite preview 로 띄운다(playwright.config.ts).
+// E2E — orchestration_fretlab.md §5 3. 흐름 (a) 연습 보기 (b) 채우기 (c) 그립 + 2차 (d) 채우기 쓸어 찍기(U4+U8). 빌드 결과를 vite preview 로 띄운다(playwright.config.ts).
 // 정답 자리는 앱 DOM 이 아니라 src/core/music 의 positions() 로 직접 계산한다(앱이 틀리면 테스트도 틀리는 순환을 피한다).
 import { expect, test, type Page } from '@playwright/test'
 import { marksFor, positions, scaleById, tuningById } from '../src/core/music'
@@ -95,6 +95,58 @@ test('(b) 채우기: CAGED 1 포지션 정답 자리 전부 탭 → 채점 → �
   await expect(sum).toContainText('0놓침')
   await expect(page.locator('.fb-mark.st-hit')).toHaveCount(answer.length)
   await expect(page.locator('.fb-mark.st-miss')).toHaveCount(0)
+  expect(errs).toEqual([])
+})
+
+test('(d) 채우기 쓸어 찍기: 같은 줄 연속 셀을 드래그 → 지나간 셀 전부 picked · 되돌아와도 재토글 없음', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const errs = errorsOf(page)
+  await page.goto('/#/')
+  const sheet = await pickScale(page, 'A', /^마이너 펜타토닉/)
+  await sheet.getByRole('group', { name: '포지션 시스템' }).getByRole('button', { name: 'CAGED' }).click()
+  await sheet.getByRole('group', { name: '포지션 순번' }).getByRole('button', { name: '1', exact: true }).click()
+  await sheet.getByRole('button', { name: '닫기' }).click()
+
+  // 정답 중 같은 줄에서 프렛 간격이 가장 좁은 두 자리 → 그 사이 셀까지 연속 2~3칸(정답·비정답 섞임)을 쓴다
+  const answer = positions(A, PENTA, STD, 'caged', FRETS)[0].marks
+  const byString = new Map<number, number[]>()
+  for (const m of answer) byString.set(m.string, [...(byString.get(m.string) ?? []), m.fret])
+  let best: { s: number; f1: number; f2: number } | undefined
+  for (const [s, frets] of byString) {
+    const f = [...frets].sort((a, b) => a - b)
+    for (let i = 1; i < f.length; i++) if (!best || f[i] - f[i - 1] < best.f2 - best.f1) best = { s, f1: f[i - 1], f2: f[i] }
+  }
+  if (!best) throw new Error('같은 줄에 정답이 둘 이상인 줄이 없다')
+  const path: string[] = []
+  for (let f = best.f1; f <= best.f2; f++) path.push(`${best.s}:${f}`)
+  expect(path.length).toBeGreaterThanOrEqual(2)
+  expect(path.length).toBeLessThanOrEqual(4)
+
+  await page.goto('/#/study/fill')
+  await expect(page.getByText(/포지션 1 \/ 5/)).toBeVisible()
+  await expect(page.getByText(`찍음 0 / 정답 ${answer.length}`)).toBeVisible()
+
+  const c0 = await center(page, path[0])
+  await page.mouse.move(c0.x, c0.y)
+  await page.mouse.down()
+  for (const key of path.slice(1)) { const c = await center(page, key); await page.mouse.move(c.x, c.y, { steps: 6 }) }
+  // 되돌아옴: 같은 포인터가 이미 들어갔던 셀은 다시 토글되지 않아야 한다
+  for (const key of [...path].reverse().slice(1)) { const c = await center(page, key); await page.mouse.move(c.x, c.y, { steps: 6 }) }
+  await page.mouse.up()
+
+  await expect(page.locator('.fb-mark.st-picked')).toHaveCount(path.length)
+  // 마크 rect 에는 data-pos 가 없으므로 지나간 셀마다 그 셀 사각 안에 picked 마크가 있는지 좌표로 확인
+  for (const key of path) {
+    const hit = await cell(page, key).evaluate((c) => {
+      const r = c.getBoundingClientRect()
+      return [...document.querySelectorAll('.fb-mark.st-picked')].some((m) => {
+        const mb = m.getBoundingClientRect()
+        return mb.left >= r.left - 1 && mb.right <= r.right + 1 && mb.top >= r.top - 1 && mb.bottom <= r.bottom + 1
+      })
+    })
+    expect(hit, `cell ${key} picked`).toBe(true)
+  }
+  await expect(page.getByText(`찍음 ${path.length} / 정답 ${answer.length}`)).toBeVisible()
   expect(errs).toEqual([])
 })
 

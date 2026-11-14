@@ -8,6 +8,10 @@
 /* 시작 화면: .empty 타일 하나 + 나가기 */
 .grip-intro { place-items: center; align-content: center; gap: 1rem; grid-template-rows: none; padding: 1.5rem; }
 .grip-start { max-width: 28rem; min-height: 11rem; font-size: var(--fs-lg); animation: rise var(--t-med) var(--ease-out); }
+/* 시작 전 스케일·옵션 한 줄 + 타일 아래 설명 */
+.grip-intro-row { display: flex; align-items: center; gap: .5rem; width: 100%; max-width: 28rem; }
+.grip-intro-row > .scale-bar { flex: 1; min-width: 0; }
+.grip-help { margin: 0; max-width: 28rem; text-align: center; font-size: var(--fs-sm); line-height: 1.5; }
 
 /* 오버레이: 불투명 surface + 1px 선. 접힘은 grid 1fr → 0fr (모션 토큰) */
 .grip-bar-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--t-med) var(--ease-out); }
@@ -27,8 +31,9 @@
 .grip-pos { display: inline-flex; align-items: center; gap: .1rem; flex: none; font-size: var(--fs-sm); font-weight: 600; }
 .grip-progress { font-size: var(--fs-sm); flex: none; }
 .grip-spacer { flex: 1; }
-/* 접힌 동안 위쪽 가장자리 탭 표적(보이지 않음) */
+/* 접힌 동안 위쪽 가장자리 탭 표적(24px). ::after 가 상단 중앙 28×4 pill 핸들 */
 .grip-edge { position: absolute; top: 0; left: 0; right: 0; height: 24px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; z-index: 2; }
+.grip-edge::after { content: ''; position: absolute; top: 4px; left: 50%; width: 28px; height: 4px; margin-left: -14px; border-radius: 2px; background: var(--border-strong); }
 .grip-edge:active:not(:disabled) { transform: none; background: var(--border); }
 
 /* 프렛보드 영역: 양끝 ◂ ▸ + 가득 채운 보드. 스와이프를 위해 브라우저 제스처 끔 */
