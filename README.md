@@ -1,6 +1,7 @@
 # FretLab
 
 A lightweight web app for memorizing electric guitar scales. Works on desktop and phones, installs as a PWA, and needs no server.
+https://8p4dev.github.io/FretLab/
 
 ## Features
 
