@@ -1,6 +1,7 @@
-// 프렛보드 — 공유 계약 orchestration_fretlab.md §3.5 (에이전트 B 소유). SVG 하나에 지판·인레이·프렛·너트·줄·줄 이름·번호·마크·라벨·탭 셀.
+// 프렛보드 — 공유 계약 orchestration_fretlab.md §3.5 (에이전트 B 소유).
 // 실물 그리기(3차 R1): 색은 fretboard.css 의 --fb-*, 칸 폭은 geometry.wirePos. 줄·프렛 굵기는 화면 px 기준(ResizeObserver 배율).
-// view=player 는 래퍼 CSS 3D(fretboard.css), fill 은 부모 px 를 읽어 1단위 = 1px 로 그린다(그립 모드).
+// 5차 3D: 같은 viewBox 의 SVG 레이어 — 보드(z 0) · 옆면(지판 아래 가장자리에서 -90° 접힘) · 줄+너트 윗면(z HS) · 마크·라벨·탭 셀(z 2HS) + 스테이지 밖 번호.
+// view=player 는 스테이지 CSS 3D(fretboard.css), fill 은 부모 px 를 읽어 1단위 = 1px 로 그린다(그립 모드).
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Accidental, FretPos, FretState, FretView, LabelMode, Mark, Tuning } from '../../core/types'
 import { posKey } from '../../core/types'
@@ -32,10 +33,12 @@ export type FretboardProps = {
 
 const NS = 'vector-effect'
 const PRESS_MS = 160
+/** 줄·너트 윗면이 지판에서 뜬 높이(화면 px). fretboard.css 의 translateZ 와 같은 값 */
+const HS = 3
 
 const grad = (id: string, vertical: boolean, stops: [number, string][]) => (
   <linearGradient id={id} x1="0" y1="0" x2={vertical ? 0 : 1} y2={vertical ? 1 : 0}>
-    {stops.map(([o, c]) => <stop key={o} offset={o} class={`fb-c-${c}`} />)}
+    {stops.map(([o, c]) => <stop key={c + o} offset={o} class={`fb-c-${c}`} />)}
   </linearGradient>
 )
 
@@ -115,6 +118,10 @@ export function Fretboard(p: FretboardProps) {
   const over = Math.min(L.padX, wireW)
   const left = a > 0 ? L.boardX - over : L.boardX, right = L.boardX + L.boardW + over
   const edge = L.sg * 0.07
+  // 옆면(5차 P2): 넥 두께 hn, 보드 위로 솟은 높이 hs. 옆면 SVG 는 y = bottom 선에서 접힌다 — 선 아래가 넥 옆면, 위가 너트 앞면·프렛 끝
+  const hn = L.sg * 0.55, hs = u(HS), sideR = L.sg * 0.075, sideY = L.bottom + hn * 0.42
+  const side: preact.JSX.Element[] = []
+  let nut: preact.JSX.Element | undefined
 
   const cells: preact.JSX.Element[] = []
   const nums: preact.JSX.Element[] = []
@@ -122,15 +129,22 @@ export function Fretboard(p: FretboardProps) {
   const dots: preact.JSX.Element[] = []
   for (let f = a; hasBoard && f <= hi; f++) {
     const x = L.wireX(f)
-    if (f === 0) wires.push(<rect key="nut" class="fb-nut" x={x - nutW} y={L.top} width={nutW} height={boardH} rx={u(1.5)} {...{ [NS]: 'non-scaling-stroke' }} />)
-    else wires.push(
-      <rect key={`ws${f}`} class="fb-shadow" x={x + wireW / 2} y={L.top} width={u(1.5)} height={boardH} />,
-      <rect key={`w${f}`} class="fb-fret" fill="url(#fb-g-fret)" x={x - wireW / 2} y={L.top} width={wireW} height={boardH} />,
-    )
+    if (f === 0) {
+      nut = <rect class="fb-nut" x={x - nutW} y={L.top} width={nutW} height={boardH} rx={u(1.5)} {...{ [NS]: 'non-scaling-stroke' }} />
+      side.push(<rect key="nf" class="fb-nut-front" x={x - nutW} y={L.bottom - hs} width={nutW} height={hs + hn * 0.5} />)
+    } else {
+      wires.push(
+        <rect key={`ws${f}`} class="fb-shadow fb-cast" x={x + wireW / 2} y={L.top} width={u(1.5)} height={boardH} />,
+        <rect key={`w${f}`} class="fb-fret" fill="url(#fb-g-fret)" x={x - wireW / 2} y={L.top} width={wireW} height={boardH} />,
+      )
+      side.push(<rect key={`we${f}`} class="fb-fret-end" x={x - wireW / 2} y={L.bottom - hs / 3} width={wireW} height={hs / 3 + hn * 0.16} />)
+    }
   }
   for (let f = lo; f <= hi; f++) {
     const x = L.x(f), cx = L.cx(f)
     if (INLAY.has(f)) {
+      // 사이드 도트: 지판 인레이와 같은 cx
+      for (const dx of DOUBLE_INLAY.has(f) ? [-1.6, 1.6] : [0]) side.push(<circle key={`sd${f}${dx}`} class="fb-dot" cx={cx + dx * sideR} cy={sideY} r={sideR} />)
       // 2점은 줄 사이에: 줄 수가 짝수면 ±1칸, 홀수면 ±½칸
       const off = n % 2 ? L.sg / 2 : L.sg
       if (DOUBLE_INLAY.has(f)) dots.push(<circle key={`d${f}a`} class="fb-dot" cx={cx} cy={L.midY - off} r={L.dot} />, <circle key={`d${f}b`} class="fb-dot" cx={cx} cy={L.midY + off} r={L.dot} />)
@@ -143,12 +157,13 @@ export function Fretboard(p: FretboardProps) {
       cells.push(<rect key={`c${key}`} class={`fb-cell${press ? ' pressed' : ''}`} data-pos={key} x={x} y={L.y(s) - L.sg / 2} width={L.cwAt(f)} height={L.sg} />)
     }
   }
-  // 줄: 지판에 떨군 그림자 → 몸통(위가 밝은 그라디언트) → 와운드는 권선 무늬(굵을 때만)
+  // 줄: 지판에 떨군 그림자(보드 레이어) → 몸통(위가 밝은 그라디언트) → 와운드는 권선 무늬(굵을 때만)
   const sx = lo === 0 ? L.x(0) : left
+  const shadows: preact.JSX.Element[] = []
   const strings = p.tuning.strings.flatMap((_, s) => {
     const px = stringPx(s, n, p.fill), th = u(px), y = L.y(s), wound = isWound(s, n)
+    if (hasBoard) shadows.push(<rect key={`ss${s}`} class="fb-shadow fb-drop" x={left} y={y + th / 2 + u(1)} width={right - left} height={Math.max(u(1), th * 0.6)} />)
     return [
-      hasBoard && <rect key={`ss${s}`} class="fb-shadow" x={left} y={y + th / 2 + u(1)} width={right - left} height={Math.max(u(1), th * 0.6)} />,
       <rect key={`s${s}`} class={`fb-string${wound ? ' wound' : ''}`} fill={`url(#fb-g-${wound ? 'wound' : 'plain'})`} x={sx} y={y - th / 2} width={right - sx} height={th} />,
       wound && px >= 3 && <line key={`sw${s}`} class="fb-winding" x1={sx} y1={y} x2={right} y2={y} stroke-width={th} stroke-dasharray={`${u(0.8)} ${u(1.4)}`} />,
     ]
@@ -158,22 +173,35 @@ export function Fretboard(p: FretboardProps) {
     <text key={`sn${s}`} class="fb-string-name" x={sx - 4} y={L.y(s)} dy=".36em" font-size={L.numFont}>{noteName(midiToPc(open), p.accidental)}</text>
   ))
 
+  const vb = `0 0 ${L.w} ${L.h}`, pct = (v: number) => `${(v / L.h) * 100}%`
   return (
-    <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={p.view} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': p.view === 'player' ? p.tilt ?? 0.6 : 0 }}>
-      <div class="fb-stage">
-        <svg viewBox={`0 0 ${L.w} ${L.h}`} role="img" aria-label={`프렛보드 ${p.tuning.name} ${lo}–${hi}프렛`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+    <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={p.view} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': p.view === 'player' ? p.tilt ?? 0.6 : 0, '--fb-u': 1 / scale, '--fb-hn': hn * scale }}>
+      <div class="fb-stage" style={{ transformOrigin: `50% ${pct(L.bottom)}` }}>
+        <svg class="fb-base" viewBox={vb} aria-hidden="true">
           <defs>
             {grad('fb-g-board', true, [[0, 'wood'], [0.5, 'wood-hi'], [1, 'wood']])}
             {grad('fb-g-fret', false, [[0, 'fret-lo'], [0.3, 'fret-hi'], [0.65, 'fret'], [1, 'fret-lo']])}
             {grad('fb-g-plain', true, [[0, 'str-hi'], [0.45, 'str-plain'], [1, 'str-lo']])}
             {grad('fb-g-wound', true, [[0, 'str-wound'], [0.3, 'str-hi'], [0.6, 'str-wound'], [1, 'str-lo']])}
+            {grad('fb-g-side', true, [[0, 'nut'], [0.13, 'nut'], [0.13, 'side'], [1, 'side-lo']])}
           </defs>
-          {hasBoard && <rect class="fb-board" fill="url(#fb-g-board)" x={left} y={L.top} width={right - left} height={boardH} />}
+          {hasBoard && <rect fill="url(#fb-g-board)" x={left} y={L.top} width={right - left} height={boardH} />}
           {hasBoard && <rect class="fb-edge" x={left} y={L.top} width={right - left} height={edge} />}
           {hasBoard && <rect class="fb-edge" x={left} y={L.bottom - edge} width={right - left} height={edge} />}
-          {dots}{wires}{strings}{names}{nums}{markNodes}{cells}
+          {dots}{wires}{shadows}{names}
+        </svg>
+        {hasBoard && (
+          <svg class="fb-side" viewBox={`0 ${L.bottom - hs} ${L.w} ${hs + hn}`} aria-hidden="true" style={{ top: pct(L.bottom - hs), height: pct(hs + hn), transformOrigin: `50% ${(hs / (hs + hn)) * 100}%` }}>
+            <rect fill="url(#fb-g-side)" x={left} y={L.bottom} width={right - left} height={hn} />
+            {side}
+          </svg>
+        )}
+        <svg class="fb-z1" viewBox={vb} aria-hidden="true">{nut}{strings}</svg>
+        <svg class="fb-z2" viewBox={vb} role="img" aria-label={`프렛보드 ${p.tuning.name} ${lo}–${hi}프렛`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+          {markNodes}{cells}
         </svg>
       </div>
+      <svg viewBox={vb} aria-hidden="true">{nums}</svg>
     </div>
   )
 }

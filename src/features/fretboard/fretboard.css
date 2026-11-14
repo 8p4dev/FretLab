@@ -1,27 +1,35 @@
 /* 프렛보드 — B 소유. 색은 전부 여기(SVG 는 class 만 단다). 실물 hex 는 --fb-* 정의에만, 그 밖은 index.css 토큰 */
-.fretboard { width: 100%; --tilt: 0; }
+/* 5차 3D 변수 — 전부 --tilt 파생(flat = 0): 기울기 각, 줄 그림자 오프셋(viewBox 단위), 프렛 그림자 폭 배율.
+   --fb-u(화면 1px 의 viewBox 단위)·--fb-hn(넥 옆면 높이 px)은 Fretboard.tsx 가 넣는다 */
+.fretboard { position: relative; width: 100%; --tilt: 0; --fb-a: calc(var(--tilt) * 66deg); --fb-drop: calc(var(--tilt) * var(--fb-u) * 1.5px); --fb-cast: calc(1 + var(--tilt) * 1.5); }
 .fretboard.fill { height: 100%; }
-.fretboard .fb-stage { width: 100%; height: 100%; transform-origin: 50% 100%; transition: transform var(--t-slow) var(--ease-out); }
-.fretboard svg { display: block; width: 100%; height: auto; max-height: 45vh; /* QA #3: 좁은 포지션 창이 1440×900 에서 행동 바를 밀어내지 않게 (60vh → 45vh) */ overflow: visible; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.fretboard.fill svg { height: 100%; max-height: none; touch-action: none; } /* QA #2: fill(그립)은 60vh 에 갇히지 않게 */
+.fretboard .fb-stage { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform var(--t-slow) var(--ease-out); }
+/* 레이어: .fb-base 가 크기를 정하고 나머지는 그 위에 겹친다. DOM 순서 = 높이 순서, 맨 위(.fb-z2)만 포인터를 받는다 */
+.fretboard svg { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.fretboard .fb-base { position: static; height: auto; max-height: 45vh; /* QA #3: 좁은 포지션 창이 1440×900 에서 행동 바를 밀어내지 않게 (60vh → 45vh) */ }
+.fretboard.fill .fb-base { height: 100%; max-height: none; } /* QA #2: fill(그립)은 60vh 에 갇히지 않게 */
+.fretboard.fill svg { touch-action: none; }
+.fretboard .fb-side { transform: rotateX(-90deg); backface-visibility: hidden; }
+.fretboard .fb-z1 { transform: translateZ(3px); }
+.fretboard .fb-z2 { transform: translateZ(6px); pointer-events: auto; }
 .fretboard[data-drag] svg { touch-action: none; } /* U4: 쓸어 찍기 중 스크롤 금지 */
 .fretboard text { font-family: inherit; text-anchor: middle; pointer-events: none; }
 
 /* 실물 색(3차 R1) — 디자인 시스템 예외는 이 --fb-* 정의 안에서만. 라이트 = 메이플, 다크 = 로즈우드. 두 벌 구조는 index.css 와 같다 */
 :root {
-  --fb-wood: #e0bd82; --fb-wood-hi: #ecd19f; --fb-wood-edge: #c59f62; --fb-inlay: #1f1c19;
+  --fb-wood: #e0bd82; --fb-wood-hi: #ecd19f; --fb-wood-edge: #c59f62; --fb-side: #c29a5c; --fb-side-lo: #8f6a3a; --fb-inlay: #1f1c19;
   --fb-fret: #b7b9b6; --fb-fret-hi: #fafaf7; --fb-fret-lo: #777a77; --fb-nut: #f4eedc; --fb-nut-edge: #a99d7e;
   --fb-str-plain: #8b9096; --fb-str-wound: #8d8472; --fb-str-hi: #f3f4f5; --fb-str-lo: #555048; --fb-shadow: #4a2c0a3d;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --fb-wood: #40261c; --fb-wood-hi: #4d2f23; --fb-wood-edge: #2a1711; --fb-inlay: #e9e3d2;
+    --fb-wood: #40261c; --fb-wood-hi: #4d2f23; --fb-wood-edge: #2a1711; --fb-side: #33190f; --fb-side-lo: #170b07; --fb-inlay: #e9e3d2;
     --fb-fret: #b2b4b1; --fb-fret-hi: #f4f4f0; --fb-fret-lo: #5c5e5b; --fb-nut: #e9e0c6; --fb-nut-edge: #7d745c;
     --fb-str-plain: #c9cdd1; --fb-str-wound: #a79d88; --fb-str-hi: #ffffff; --fb-str-lo: #5f594c; --fb-shadow: #00000073;
   }
 }
 :root[data-theme='dark'] {
-  --fb-wood: #40261c; --fb-wood-hi: #4d2f23; --fb-wood-edge: #2a1711; --fb-inlay: #e9e3d2;
+  --fb-wood: #40261c; --fb-wood-hi: #4d2f23; --fb-wood-edge: #2a1711; --fb-side: #33190f; --fb-side-lo: #170b07; --fb-inlay: #e9e3d2;
   --fb-fret: #b2b4b1; --fb-fret-hi: #f4f4f0; --fb-fret-lo: #5c5e5b; --fb-nut: #e9e0c6; --fb-nut-edge: #7d745c;
   --fb-str-plain: #c9cdd1; --fb-str-wound: #a79d88; --fb-str-hi: #ffffff; --fb-str-lo: #5f594c; --fb-shadow: #00000073;
 }
@@ -34,9 +42,14 @@
 .fb-edge { fill: var(--fb-wood-edge); }
 .fb-dot { fill: var(--fb-inlay); }
 .fb-nut { fill: var(--fb-nut); stroke: var(--fb-nut-edge); stroke-width: 1; }
+.fb-c-nut { stop-color: var(--fb-nut); } .fb-c-side { stop-color: var(--fb-side); } .fb-c-side-lo { stop-color: var(--fb-side-lo); }
+.fb-nut-front { fill: color-mix(in srgb, var(--fb-nut) 72%, var(--fb-nut-edge)); }
+.fb-fret-end { fill: var(--fb-fret); }
 .fb-shadow { fill: var(--fb-shadow); }
+/* 기울수록: 줄 그림자는 아래로 벌어지고(줄이 3px 떠 있어 시차도 더해진다) 프렛 그림자는 넓어진다 */
+.fb-drop { transform: translateY(var(--fb-drop)); }
+.fb-cast { transform-box: fill-box; transform-origin: 0 0; transform: scaleX(var(--fb-cast)); }
 .fb-winding { stroke: var(--fb-str-lo); stroke-opacity: .45; }
-.fb-board, .fb-edge, .fb-dot, .fb-nut, .fb-fret, .fb-shadow, .fb-string, .fb-winding { pointer-events: none; }
 .fb-num { fill: var(--muted); }
 .fretboard .fb-string-name { fill: var(--muted); text-anchor: end; } /* U1: `.fretboard text` 보다 우선 */
 
@@ -60,7 +73,7 @@
 /* U2 눌림: 마크는 튀어오르고, 마크 없는 자리는 셀이 잠깐 어두워진다 */
 .fb-mark.pressed { animation: fb-press var(--t-fast) var(--ease-out); }
 .fb-cell.pressed { fill: color-mix(in srgb, var(--text) 10%, transparent); }
-@keyframes fb-press { from { transform: scale(1.15); } to { transform: scale(1); } }
+@keyframes fb-press { from { scale: 1.15; } to { scale: 1; } } /* scale 속성: 연주자 시점의 transform 보정과 겹쳐도 유지 */
 
 /* 탭 셀: 맨 위 투명 레이어 */
 .fb-cell { fill: transparent; pointer-events: all; transition: fill var(--t-fast); }
@@ -68,12 +81,15 @@
 .fretboard[data-tap] .fb-cell { cursor: pointer; }
 @media (hover: hover) { .fb-cell:hover { fill: color-mix(in srgb, var(--text) 6%, transparent); } }
 
-/* 연주자 시점(3차 R2): 앞으로만 눕힌다 — 낮은 줄(아래)이 눈에 가깝게, 하단 축. 줄은 수평·프렛은 좌우 대칭 */
-.fretboard[data-view='player'] .fb-stage { transform: perspective(1100px) rotateX(calc(var(--tilt) * 55deg)); }
-/* 눌림 보정: 화면 종횡비 = cosθ × 원근 축소 → 그 역수만큼 세로로 늘려 원형 마크가 원에 가깝게.
-   ponytail: 원근 항(1 + tilt × .12)은 지판 가운데 줄 기준 한 값 — 맨 위/아래 줄은 몇 % 타원. 줄마다 맞추려면 마크에 행 변수를 줄 것 */
-.fretboard[data-view='player'] .fb-mark, .fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-num, .fretboard[data-view='player'] .fb-string-name {
-  transform-box: fill-box; transform-origin: center; transform: scaleY(calc((1 + var(--tilt) * .12) / cos(calc(var(--tilt) * 55deg))));
+/* 연주자 시점(3차 R2 → 5차 P1): 앞으로만 눕힌다 — 지판 아래 가장자리가 축(transform-origin 은 Fretboard.tsx), 낮은 줄이 눈에 가깝게.
+   옆면이 축 아래로 hn × sinθ 만큼 드러나므로 스테이지를 그만큼 올려 번호(스테이지 밖, 눕지 않음) 위에 얹는다 */
+.fretboard[data-view='player'] .fb-stage { transform: translateY(calc(sin(var(--fb-a)) * var(--fb-hn) * -1px)) perspective(2000px) rotateX(var(--fb-a)); }
+/* 눌림 보정: 화면 종횡비 = cos(각) x 원근 축소(.92~1) → 1/cos 만큼 세로로 늘려 원형 마크가 원에 가깝게(줄 이름도).
+   66도에서는 줄 간격(화면)이 마크 지름의 절반 남짓이라, 기울수록 마크만 줄이고(--fb-m) 글자는 그대로 두어 이웃 줄 마크에 가리지 않게 한다 */
+.fretboard[data-view='player'] { --fb-m: calc(1 - var(--tilt) * .2); --fb-sy: calc((1 + var(--tilt) * .07) / cos(var(--fb-a))); }
+.fretboard[data-view='player'] .fb-mark, .fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-string-name {
+  transform-box: fill-box; transform-origin: center; transform: scale(var(--fb-m), calc(var(--fb-m) * var(--fb-sy)));
   transition: transform var(--t-slow) var(--ease-out);
 }
+.fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-string-name { --fb-m: 1; }
 .fretboard[data-view='player'] .fb-label { font-weight: 700; }
