@@ -7,23 +7,28 @@ import ThemeToggle from './ui/ThemeToggle'
 import StudyPage from './features/study/StudyPage'
 import GripPage from './features/grip/GripPage'
 import { unlockAudio } from './core/audio'
+import { useT } from './core/i18n'
+import { isTouchDevice } from './core/device'
+import { S } from './strings'
 
 export default function App() {
   const r = useRoute()
+  const { t, lang } = useT()
+  const touch = isTouchDevice()
   // 첫 제스처에서 오디오 잠금 해제(iOS). 한 번만
   useEffect(() => {
     const on = () => { unlockAudio(); removeEventListener('pointerdown', on) }
     addEventListener('pointerdown', on, { passive: true })
     return () => removeEventListener('pointerdown', on)
   }, [])
-  useEffect(() => { document.title = r.name === 'grip' ? '그립 — FretLab' : 'FretLab' }, [r])
+  useEffect(() => { document.title = r.name === 'grip' ? S.gripTitle[lang] : 'FretLab'; document.documentElement.lang = lang }, [r, lang])
   if (r.name === 'grip') return <><GripPage /><Toaster /></>
   return (
     <>
       <nav className="topnav">
         <a className="brand" href={href.study()} aria-label="FretLab"><span className="brand-mark" aria-hidden />FretLab</a>
-        <a aria-current={r.name === 'study' ? 'page' : undefined} href={href.study()}>연습</a>
-        <a href={href.grip()}>그립</a>
+        <a aria-current={r.name === 'study' ? 'page' : undefined} href={href.study()}>{t(S.study)}</a>
+        {touch && <a href={href.grip()}>{t(S.grip)}</a>}
         <span className="topnav-spacer" />
         <ThemeToggle />
       </nav>

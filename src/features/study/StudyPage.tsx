@@ -2,7 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { FretPos, FretState, Mark, StudyMode } from '../../core/types'
 import { posKey } from '../../core/types'
-import { patchSettings, useSettings } from '../../core/settings'
+import { patchSettings, setTiltLive, useSettings } from '../../core/settings'
+import { fmt, useT } from '../../core/i18n'
+import type { Str } from '../../core/i18n'
 import { labelOf, midiAt, positions, scaleById, tuningById } from '../../core/music'
 import { playNote, playSequence } from '../../core/audio'
 import { href } from '../../router'
@@ -13,9 +15,16 @@ import { I } from '../../ui/icons'
 import { Icon } from '../../ui/Icon'
 import { followOrder, fretWindows, swipeDir, useFill, useFollow } from './logic'
 import { recordResult, statsFor, statsKey, statsLine } from './stats'
+import { S } from './strings'
 import './study.css'
 
-const MODES: { m: StudyMode; label: string }[] = [{ m: 'view', label: '보기' }, { m: 'fill', label: '채우기' }, { m: 'follow', label: '따라치기' }]
+const MODES: { m: StudyMode; label: Str }[] = [{ m: 'view', label: S.view }, { m: 'fill', label: S.fill }, { m: 'follow', label: S.follow }]
+type Vars = Record<string, string | number>
+/** 문구의 {b} 자리에 굵은 값을 끼운다(어순이 언어마다 달라 문구 쪽에 자리를 둔다) */
+const em = (tpl: string, bold: string | number, vars: Vars = {}) => {
+  const [a, b = ''] = tpl.split('{b}')
+  return <>{fmt(a, vars)}<strong>{bold}</strong>{fmt(b, vars)}</>
+}
 const GAP_MS = 220
 const NARROW = '(max-width: 760px)'
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -33,6 +42,7 @@ function useNarrow(): boolean {
 
 export default function StudyPage({ mode }: { mode: StudyMode }) {
   const s = useSettings()
+  const { t, lang } = useT()
   const scale = scaleById(s.scaleId), tuning = tuningById(s.tuningId)
   const all = useMemo(() => positions(s.root, scale, tuning, s.system, s.fretCount), [s.root, scale, tuning, s.system, s.fretCount])
   const pi = Math.min(s.position, all.length - 1)
@@ -155,77 +165,83 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
   const target = mode === 'follow' && !follow.done ? followOrder(marks)[follow.idx] : undefined
 
   const finished = mode === 'fill' ? fill.graded : mode === 'follow' && follow.done
-  const nextPos = all.length > 1 && <button type="button" onClick={() => go(1)}>다음 포지션<Icon d={I.arrowRight} /></button>
+  const nextPos = all.length > 1 && <button type="button" onClick={() => go(1)}>{t(S.nextPos)}<Icon d={I.arrowRight} /></button>
 
   return (
     <div className="study" data-mode={mode}>
       <header className="study-head">
         <ScaleBar />
-        <nav className="seg" aria-label="학습 모드">
-          {MODES.map(({ m, label }) => <a key={m} href={href.study(m)} aria-label={label} aria-current={m === mode ? 'page' : undefined}>{label}</a>)}
+        <div className="study-tools">
+        <nav className="seg" aria-label={t(S.modes)}>
+          {MODES.map(({ m, label }) => <a key={m} href={href.study(m)} aria-current={m === mode ? 'page' : undefined}>{t(label)}</a>)}
         </nav>
         <span className="study-spacer" />
+        <label className="study-tilt">
+          <span className="muted">{t(S.tilt)}</span>
+          <input type="range" min={0} max={1} step={0.05} value={s.tilt} aria-label={t(S.tilt)} onInput={(e) => setTiltLive(Number(e.currentTarget.value))} onChange={(e) => patchSettings({ tilt: Number(e.currentTarget.value) })} />
+        </label>
         <OptionsButton />
+        </div>
       </header>
 
       {s.system !== 'full' && (
         <div className="study-pos">
-          <button type="button" className="ghost" aria-label="이전으로" onClick={() => go(-1)}><Icon d={I.chevronLeft} size={20} /></button>
-          <span className="tnum">포지션 <strong>{pi + 1}</strong> / {all.length} <span className="muted">· {pos.frets[0]}–{pos.frets[1]} 프렛</span></span>
-          <button type="button" className="ghost" aria-label="다음으로" onClick={() => go(1)}><Icon d={I.chevronRight} size={20} /></button>
+          <button type="button" className="ghost" aria-label={t(S.prevPos)} onClick={() => go(-1)}><Icon d={I.chevronLeft} size={20} /></button>
+          <span className="tnum">{em(t(S.pos), pi + 1, { total: all.length })} <span className="muted">· {fmt(t(S.posFrets), { lo: pos.frets[0], hi: pos.frets[1] })}</span></span>
+          <button type="button" className="ghost" aria-label={t(S.nextPos)} onClick={() => go(1)}><Icon d={I.chevronRight} size={20} /></button>
         </div>
       )}
 
       {wins.length > 1 && (
         <div className="study-pos study-win">
-          <button type="button" className="ghost" aria-label="이전 프렛 창" onClick={() => goWin(-1)}><Icon d={I.chevronLeft} size={20} /></button>
-          <span className="tnum">프렛 <strong>{wins[wi][0]}–{wins[wi][1]}</strong> <span className="muted">· {wi + 1} / {wins.length}</span></span>
-          <button type="button" className="ghost" aria-label="다음 프렛 창" onClick={() => goWin(1)}><Icon d={I.chevronRight} size={20} /></button>
+          <button type="button" className="ghost" aria-label={t(S.prevWin)} onClick={() => goWin(-1)}><Icon d={I.chevronLeft} size={20} /></button>
+          <span className="tnum">{em(t(S.win), `${wins[wi][0]}–${wins[wi][1]}`)} <span className="muted">· {wi + 1} / {wins.length}</span></span>
+          <button type="button" className="ghost" aria-label={t(S.nextWin)} onClick={() => goWin(1)}><Icon d={I.chevronRight} size={20} /></button>
         </div>
       )}
 
       <div className={`study-board${shake ? ' shake' : ''}`} {...boardEvents}>
-        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} view={s.view} tilt={s.tilt} onTap={onTap} drag={drag} />
+        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} tilt={s.tilt} onTap={onTap} drag={drag} />
       </div>
 
-      {mode === 'fill' && fill.result && <Summary title="채점 결과" nums={[['맞음', fill.result.hit, 'ok'], ['틀림', fill.result.miss, 'danger'], ['놓침', fill.result.missing]]} line={statsLine(stat)} />}
+      {mode === 'fill' && fill.result && <Summary title={t(S.results)} nums={[[t(S.correct), fill.result.hit, 'ok'], [t(S.wrong), fill.result.miss, 'danger'], [t(S.missed), fill.result.missing]]} line={statsLine(stat, lang)} />}
       {mode === 'follow' && follow.done && follow.total > 0 && (
-        <Summary title="완주" nums={[['음', follow.total, 'ok'], ['틀림', follow.wrong, 'danger'], ['초', Math.round((elapsed ?? 0) / 100) / 10]]} line={statsLine(stat)} />
+        <Summary title={t(S.done)} nums={[[t(S.notes), follow.total, 'ok'], [t(S.wrong), follow.wrong, 'danger'], [t(S.seconds), Math.round((elapsed ?? 0) / 100) / 10]]} line={statsLine(stat, lang)} />
       )}
-      {mode === 'follow' && follow.total === 0 && <p className="empty">이 포지션에는 음이 없습니다.</p>}
+      {mode === 'follow' && follow.total === 0 && <p className="empty">{t(S.empty)}</p>}
 
       <div className="study-bar actions">
         {mode === 'view' && (
-          <button type="button" aria-label="들어보기" aria-pressed={playIdx >= 0} disabled={!marks.length} onClick={listen}>
-            <Icon d={playIdx >= 0 ? I.square : I.play} />들어보기
+          <button type="button" aria-pressed={playIdx >= 0} disabled={!marks.length} onClick={listen}>
+            <Icon d={playIdx >= 0 ? I.square : I.play} />{t(S.listen)}
           </button>
         )}
         {mode === 'fill' && !fill.graded && <>
-          <span className="study-progress tnum muted">찍음 <strong>{fill.picked.size}</strong> / 정답 {marks.length}</span>
-          <button type="button" disabled={!fill.picked.size} onClick={fill.reset}><Icon d={I.rotateCcw} />초기화</button>
-          <button type="button" className="primary" disabled={!fill.picked.size} onClick={grade}><Icon d={I.checkCheck} />채점</button>
+          <span className="study-progress tnum muted">{em(t(S.picked), fill.picked.size, { n: marks.length })}</span>
+          <button type="button" disabled={!fill.picked.size} onClick={fill.reset}><Icon d={I.rotateCcw} />{t(S.reset)}</button>
+          <button type="button" className="primary" disabled={!fill.picked.size} onClick={grade}><Icon d={I.checkCheck} />{t(S.grade)}</button>
         </>}
         {mode === 'follow' && !follow.done && <>
           <span className="study-progress tnum muted">
-            <strong>{follow.idx}</strong> / {follow.total}{follow.wrong > 0 && <> · 틀림 {follow.wrong}</>}
-            {target && <> · 다음 <strong>{labelOf(target, s.labelMode === 'none' ? 'note' : s.labelMode, s.accidental)}</strong> · {tuning.strings.length - target.string}번줄</>}
+            {em(t(S.followProg), follow.idx, { n: follow.total })}{follow.wrong > 0 && <> · {fmt(t(S.wrongN), { w: follow.wrong })}</>}
+            {target && <> · {em(t(S.nextNote), labelOf(target, s.labelMode === 'none' ? 'note' : s.labelMode, s.accidental), { s: tuning.strings.length - target.string })}</>}
           </span>
-          <button type="button" disabled={!follow.idx} onClick={retry}><Icon d={I.rotateCcw} />다시</button>
+          <button type="button" disabled={!follow.idx} onClick={retry}><Icon d={I.rotateCcw} />{t(S.retry)}</button>
         </>}
         {finished && <>
-          <button type="button" className="primary" onClick={retry}><Icon d={I.rotateCcw} />다시</button>
+          <button type="button" className="primary" onClick={retry}><Icon d={I.rotateCcw} />{t(S.retry)}</button>
           {nextPos}
         </>}
       </div>
-      <p className="study-kbd muted">{kbdHint(mode, s.system !== 'full' && all.length > 1)}</p>
+      <p className="study-kbd muted">{kbdHint(mode, s.system !== 'full' && all.length > 1, t)}</p>
     </div>
   )
 }
 
 /** PC 단축키 안내(모드에 맞는 것만). 표시 여부는 study.css 의 hover+폭 미디어쿼리 */
-function kbdHint(mode: StudyMode, hasPos: boolean): string {
-  const items = [mode === 'fill' && 'Enter 채점·다시', mode === 'follow' && 'Enter 다시', hasPos && '← → 포지션', mode === 'view' && 'Space 들어보기', hasPos && '1–9 포지션']
-  return items.filter(Boolean).join(' · ')
+function kbdHint(mode: StudyMode, hasPos: boolean, t: (s: Str) => string): string {
+  const items = [mode === 'fill' && S.kbdGrade, mode === 'follow' && S.kbdRetry, hasPos && S.kbdPos, mode === 'view' && S.kbdListen, hasPos && S.kbdDigit]
+  return items.filter((x): x is Str => !!x).map(t).join(' · ')
 }
 
 /** 요약 카드(DrillDown .flash-summary): 숫자가 주인공 */

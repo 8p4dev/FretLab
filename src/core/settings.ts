@@ -4,7 +4,7 @@ import type { Settings } from './types'
 
 export const DEFAULTS: Settings = {
   root: 9, scaleId: 'minor-pentatonic', tuningId: 'standard', accidental: 'sharp', labelMode: 'note',
-  tone: 'clean', volume: .8, muted: false, system: 'full', position: 0, fretCount: 15, view: 'flat', tilt: .6,
+  tone: 'clean', volume: .8, muted: false, system: 'full', position: 0, fretCount: 22, tilt: 0, lang: 'en',
 }
 const KEY = 'fretlab:settings'
 const subs = new Set<() => void>()
@@ -13,7 +13,10 @@ function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
-      const p = JSON.parse(raw) as Partial<Settings>
+      const p = JSON.parse(raw) as Partial<Settings> & { view?: string }
+      // 6차: view 옵션 삭제 — 평면이었으면 기울기 0
+      if (p.view === 'flat') p.tilt = 0
+      delete p.view
       // 4차: 옛 톤 이름(acoustic/rock/metal) → clean/distortion
       const old = p.tone as string | undefined
       if (old === 'acoustic') p.tone = 'clean'
@@ -34,6 +37,10 @@ export function patchSettings(p: Partial<Settings>): void {
   subs.forEach((f) => f())
 }
 const subscribe = (f: () => void) => (subs.add(f), () => void subs.delete(f))
+/** 슬라이더 드래그 중: 저장·재렌더 없이 프렛보드 CSS 변수만 바꾼다(QA6 #2). 놓을 때 patchSettings({ tilt }) */
+export function setTiltLive(v: number): void {
+  document.querySelectorAll<HTMLElement>('.fretboard').forEach((el) => { el.style.setProperty('--tilt', String(v)); el.dataset.view = v > 0 ? 'player' : 'flat' })
+}
 /** 화면은 이 훅으로 읽고 patchSettings 로 쓴다 */
 export function useSettings(): Settings {
   return useStore(subscribe, getSettings)

@@ -7,7 +7,9 @@ import { href } from '../../router'
 import { patchSettings, useSettings } from '../../core/settings'
 import { midiAt, positions, scaleById, tuningById } from '../../core/music'
 import { playNote } from '../../core/audio'
-import { posKey, type FretPos } from '../../core/types'
+import { posKey, type FretPos, type Settings } from '../../core/types'
+import { isTouchDevice } from '../../core/device'
+import { fmt, useT } from '../../core/i18n'
 import { Fretboard } from '../fretboard/Fretboard'
 import { OptionsButton, ScaleBar } from '../picker/ScaleBar'
 import { useFollow } from '../study/logic'
@@ -15,6 +17,7 @@ import { toast } from '../Toast'
 import { haptic } from '../feel'
 import { Icon } from '../../ui/Icon'
 import { I } from '../../ui/icons'
+import { S } from './strings'
 import './grip.css'
 
 const HIDE_MS = 3000
@@ -60,6 +63,7 @@ async function enter(): Promise<() => void> {
 
 export default function GripPage() {
   const s = useSettings()
+  const { t } = useT()
   const [active, setActive] = useState(false)
   const portrait = useMedia('(orientation: portrait)')
 
@@ -80,25 +84,34 @@ export default function GripPage() {
     setActive(true)
   }
 
+  // G1: 터치 기기가 아니면 안내만
+  if (!isTouchDevice()) {
+    return (
+      <div className="grip grip-intro">
+        <Icon d={I.smartphone} size={64} />
+        <p className="grip-note">{t(S.touchOnly)}</p>
+        <a href={href.study()}>{t(S.back)}</a>
+      </div>
+    )
+  }
   if (!active) {
     return (
       <div className="grip grip-intro">
         <div className="grip-intro-row"><ScaleBar /><OptionsButton /></div>
         <button type="button" className="empty grip-start" onClick={start}>
           <Icon d={I.maximize} size={64} />
-          <span>시작 — 가로 전체화면으로 연다</span>
+          <span>{t(S.start)}</span>
         </button>
-        <p className="grip-help muted">폰을 가로로 눕혀 넥처럼 잡고 프렛을 누르세요 · 띠는 3초 뒤 접힙니다 · ✕ 또는 ESC 로 나가기</p>
-        <a href={href.study()}>나가기</a>
+        <p className="grip-help muted">{t(S.help)}</p>
+        <a href={href.study()}>{t(S.exit)}</a>
       </div>
     )
   }
   return <Grip portrait={portrait} s={s} />
 }
 
-type S = ReturnType<typeof useSettings>
-
-function Grip({ portrait, s }: { portrait: boolean; s: S }) {
+function Grip({ portrait, s }: { portrait: boolean; s: Settings }) {
+  const { t } = useT()
   const scale = scaleById(s.scaleId), tuning = tuningById(s.tuningId)
   const all = positions(s.root, scale, tuning, s.system, s.fretCount)
   const pos = all[s.position] ?? all[0]
@@ -166,7 +179,7 @@ function Grip({ portrait, s }: { portrait: boolean; s: S }) {
       if (r === 'miss') { haptic('warn'); return }
       // 마지막 음은 맞은 것이므로 wrong 은 이 시점 값이 최종값
       if (r === 'done') {
-        toast(`완료 — 틀림 ${follow.wrong} · ${((performance.now() - followT0) / 1000).toFixed(1)}초`)
+        toast(fmt(t(S.done), { w: follow.wrong, s: ((performance.now() - followT0) / 1000).toFixed(1) }))
         followT0 = 0
         haptic('success'); follow.reset()
       }
@@ -189,34 +202,34 @@ function Grip({ portrait, s }: { portrait: boolean; s: S }) {
         <div className="grip-bar">
           <ScaleBar compact />
           <span className="grip-pos tnum">
-            <button type="button" className="ghost" aria-label="이전 포지션" disabled={all.length < 2}
+            <button type="button" className="ghost" aria-label={t(S.prevPos)} disabled={all.length < 2}
               onClick={() => patchSettings({ position: (s.position - 1 + all.length) % all.length })}><Icon d={I.chevronLeft} size={20} /></button>
             {s.position + 1}/{all.length}
-            <button type="button" className="ghost" aria-label="다음 포지션" disabled={all.length < 2}
+            <button type="button" className="ghost" aria-label={t(S.nextPos)} disabled={all.length < 2}
               onClick={() => patchSettings({ position: (s.position + 1) % all.length })}><Icon d={I.chevronRight} size={20} /></button>
           </span>
-          <div className="seg" role="group" aria-label="모드">
-            <button type="button" aria-pressed={mode === 'view'} onClick={() => setMode('view')}>보기</button>
-            <button type="button" aria-pressed={mode === 'follow'} onClick={() => { setMode('follow'); follow.reset() }}>따라치기</button>
+          <div className="seg" role="group" aria-label={t(S.mode)}>
+            <button type="button" aria-pressed={mode === 'view'} onClick={() => setMode('view')}>{t(S.view)}</button>
+            <button type="button" aria-pressed={mode === 'follow'} onClick={() => { setMode('follow'); follow.reset() }}>{t(S.follow)}</button>
           </div>
           {mode === 'follow' && <span className="grip-progress tnum muted">{Math.min(follow.idx + 1, follow.total)}/{follow.total}</span>}
           <span className="grip-spacer" />
           <OptionsButton />
-          <button type="button" className="ghost" aria-label={s.muted ? '소리 켜기' : '음소거'} aria-pressed={s.muted}
+          <button type="button" className="ghost" aria-label={t(s.muted ? S.unmute : S.mute)} aria-pressed={s.muted}
             onClick={() => patchSettings({ muted: !s.muted })}><Icon d={s.muted ? I.volumeX : I.volume2} size={20} /></button>
-          <button type="button" className="ghost" aria-label="나가기" onClick={exit}><Icon d={I.x} size={20} /></button>
+          <button type="button" className="ghost" aria-label={t(S.exit)} onClick={exit}><Icon d={I.x} size={20} /></button>
         </div>
       </div>
-      {!barShown && <button type="button" className="grip-edge" aria-label="메뉴 펼치기" onClick={wake} />}
+      {!barShown && <button type="button" className="grip-edge" aria-label={t(S.showMenu)} onClick={wake} />}
 
       {portrait ? (
-        <div className="grip-rotate muted"><Icon d={I.smartphone} size={64} /><span>가로로 돌려 주세요</span></div>
+        <div className="grip-rotate muted"><Icon d={I.smartphone} size={64} /><span>{t(S.rotate)}</span></div>
       ) : (
         <div className="grip-board" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-          <button type="button" className="ghost grip-arrow" aria-label="낮은 프렛으로" disabled={lo <= 0} onClick={() => shift(-1)}><Icon d={I.chevronLeft} size={20} /></button>
-          <Fretboard fill view="flat" tuning={tuning} frets={[lo, hi]} marks={pos.marks} labelMode={s.labelMode} accidental={s.accidental}
+          <button type="button" className="ghost grip-arrow" aria-label={t(S.lower)} disabled={lo <= 0} onClick={() => shift(-1)}><Icon d={I.chevronLeft} size={20} /></button>
+          <Fretboard fill tuning={tuning} frets={[lo, hi]} marks={pos.marks} labelMode={s.labelMode} accidental={s.accidental}
             states={mode === 'follow' ? follow.states : undefined} onTap={onTap} />
-          <button type="button" className="ghost grip-arrow" aria-label="높은 프렛으로" disabled={lo >= maxLo} onClick={() => shift(1)}><Icon d={I.chevronRight} size={20} /></button>
+          <button type="button" className="ghost grip-arrow" aria-label={t(S.higher)} disabled={lo >= maxLo} onClick={() => shift(1)}><Icon d={I.chevronRight} size={20} /></button>
         </div>
       )}
     </div>

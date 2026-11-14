@@ -1,7 +1,7 @@
 // 자가 검사 — `npm run check`. 실패하면 throw.
 import { posKey } from '../types.ts'
 import type { Position, PositionSystem } from '../types.ts'
-import { SCALES, TUNINGS, labelOf, marksFor, positions, scaleById, tuningById } from './index.ts'
+import { SCALE_GROUPS, SCALES, TUNINGS, labelOf, marksFor, positions, scaleById, tuningById } from './index.ts'
 
 const assert = (ok: unknown, msg: string): void => {
   if (!ok) throw new Error(msg)
@@ -26,6 +26,25 @@ assert(new Set(TUNINGS.map((t) => t.id)).size === TUNINGS.length, 'duplicate tun
 for (const t of TUNINGS) assert(t.strings.length >= 6 && t.strings.every((m, i) => i === 0 || m > t.strings[i - 1]), `${t.id}: strings`)
 assert(tuningById('standard-7').strings.length === 7, '7-string tuning')
 assert(tuningById('nope').id === 'standard', 'tuningById fallback')
+
+// 2b. 이름 i18n (6차): name/nameKo/nameJa 전부 비어 있지 않고, 같은 목록 안에서 언어별 중복 없음. name 은 영문(한글·가나·한자 없음)
+type Named = { id: string; name: string; nameKo?: string; nameJa?: string }
+const NAME_KEYS = ['name', 'nameKo', 'nameJa'] as const
+function checkNames(kind: string, xs: Named[]): number {
+  for (const k of NAME_KEYS) {
+    for (const x of xs) assert(x[k]?.trim() && x[k] === x[k]?.trim(), `${kind} ${x.id}: ${k} empty or untrimmed`)
+    const dup = xs.find((x, i) => xs.findIndex((y) => y[k] === x[k]) !== i)
+    assert(!dup, `${kind}: duplicate ${k} "${dup?.[k]}"`)
+  }
+  for (const x of xs) assert(!/[぀-ヿ㐀-鿿가-힣]/.test(x.name), `${kind} ${x.id}: name must be English`)
+  return xs.filter((x) => x.nameJa).length
+}
+const jaScales = checkNames('scale', SCALES)
+const jaGroups = checkNames('group', SCALE_GROUPS)
+const jaTunings = checkNames('tuning', TUNINGS)
+assert(SCALE_GROUPS.length === 11 && SCALES.every((s) => SCALE_GROUPS.some((g) => g.id === s.group)), 'scale groups')
+// 튜닝 이름의 괄호부는 ASCII 괄호(ScaleBar 요약이 /\s*\(.*\)\s*$/ 로 뗀다)
+for (const t of TUNINGS) for (const k of NAME_KEYS) assert(/^\S.* \([A-G][A-G#b ]+\)$/.test(t[k] ?? ''), `tuning ${t.id}: ${k} format`)
 
 // 3. marksFor 샘플: A 마이너 펜타토닉, 스탠다드, 12프렛 → 루트 7개 (E5 A0 A12 D7 G2 B10 e5)
 const std = tuningById('standard')
@@ -90,4 +109,4 @@ const seven = positions(9, scaleById('minor-pentatonic'), tuningById('standard-7
 assert(seven.length === 5 && seven.every((p) => new Set(p.marks.map((m) => m.string)).size === 7), '7-string caged')
 assert(positions(9, scaleById('major'), tuningById('standard-7'), '3nps', 24).length === 7, '7-string 3nps')
 
-console.log(`music.check ok — scales ${SCALES.length}, tunings ${TUNINGS.length}, positions ${SCALES.length * TUNINGS.length * systems.length * 4 * 12} combos`)
+console.log(`music.check ok — scales ${SCALES.length}, tunings ${TUNINGS.length}, nameJa ${jaScales}/${SCALES.length} · groups ${jaGroups}/${SCALE_GROUPS.length} · tunings ${jaTunings}/${TUNINGS.length}, positions ${SCALES.length * TUNINGS.length * systems.length * 4 * 12} combos`)

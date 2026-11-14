@@ -2,6 +2,8 @@
 // 전역 토스트 + 1회성 힌트 — 공유 계약 orchestration_ui_first.md §3.2 (DS 소유). 01 §3.6 #13 · 02 §3.5.
 // 동시 1개(큐): 떠 있는 것이 끝나야 다음이 나온다. 힌트(hint)는 [확인] 을 누를 때까지 떠 있고 그동안 일반 토스트는 대기한다.
 // 단, 정보 토스트(버튼 없음)는 기다리지 않는다: 액션·힌트 토스트 앞에 끼어 바로 보이고, 끝나면 밀린 것이 남은 시간만큼 다시 뜬다.
+import { tr } from '../core/i18n'
+import { S } from '../strings'
 import { useStore } from '../core/store'
 import { Icon } from '../ui/Icon'
 import { I } from '../ui/icons'
@@ -79,7 +81,7 @@ export function Toaster() {
               {t.action.label}
             </button>
           )}
-          {t.hint && <button type="button" onClick={() => dismiss(t)}>확인</button>}
+          {t.hint && <button type="button" onClick={() => dismiss(t)}>{tr(S.ok)}</button>}
         </div>
       )}
     </div>

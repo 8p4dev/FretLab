@@ -14,6 +14,8 @@ export type Scale = {
   name: string
   /** 한글 이름 (예: "메이저 (이오니안)") */
   nameKo: string
+  /** 일본어 이름 (6차, A 가 채움) */
+  nameJa?: string
   /** 루트로부터 반음 간격, 오름차순, 첫 값 0, 12 미만. 예: 메이저 [0,2,4,5,7,9,11] */
   intervals: number[]
   group: ScaleGroup
@@ -22,7 +24,10 @@ export type Scale = {
 
 export type Tuning = {
   id: string
+  /** 영문 이름 (예: "Standard (E A D G B E)") */
   name: string
+  nameKo?: string
+  nameJa?: string
   /** 낮은 줄 → 높은 줄 MIDI. 스탠다드 6현 = [40,45,50,55,59,64]. 7현은 길이 7 */
   strings: Midi[]
 }
@@ -57,8 +62,9 @@ export type Position = {
 
 /** 4차(톤 라운드)에서 클린/디스토션 2종으로 변경. 샘플: 클린 = FluidR3 GM 27, 디스토션 = Aspirin GM 30 */
 export type Tone = 'clean' | 'distortion'
+/** UI 언어 (6차). 기본 en */
+export type Lang = 'en' | 'ko' | 'ja'
 export type StudyMode = 'view' | 'fill' | 'follow'
-export type FretView = 'flat' | 'player'
 
 /** 프렛 하나의 표시 상태(학습 모드가 넘긴다). 없는 키 = 기본 */
 export type FretState = 'hit' | 'miss' | 'target' | 'dim' | 'picked'
@@ -78,7 +84,7 @@ export type Settings = {
   position: number
   /** 보이는 마지막 프렛(개방 제외) 12..24 */
   fretCount: number
-  view: FretView
-  /** 연주자 시점 기울기 0..1 (view = player 일 때) */
+  /** 연주자 시점 기울기 0..1. 0 = 평면(6차: view 옵션 삭제) */
   tilt: number
+  lang: Lang
 }

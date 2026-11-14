@@ -3,10 +3,12 @@
 // 5차 3D: 같은 viewBox 의 SVG 레이어 — 보드(z 0) · 옆면(지판 아래 가장자리에서 -90° 접힘) · 줄+너트 윗면(z HS) · 마크·라벨·탭 셀(z 2HS) + 스테이지 밖 번호.
 // view=player 는 스테이지 CSS 3D(fretboard.css), fill 은 부모 px 를 읽어 1단위 = 1px 로 그린다(그립 모드).
 import { useEffect, useRef, useState } from 'preact/hooks'
-import type { Accidental, FretPos, FretState, FretView, LabelMode, Mark, Tuning } from '../../core/types'
+import type { Accidental, FretPos, FretState, LabelMode, Mark, Tuning } from '../../core/types'
 import { posKey } from '../../core/types'
 import { labelOf, midiToPc, noteName } from '../../core/music'
 import { DOUBLE_INLAY, INLAY, firstEntry, isWound, layout, showNumber, stringPx, wirePx } from './geometry'
+import { fmt, localName, tr } from '../../core/i18n'
+import { S } from './strings'
 import './fretboard.css'
 
 export type FretboardProps = {
@@ -19,8 +21,7 @@ export type FretboardProps = {
   accidental: Accidental
   /** posKey → 상태. 마크 없는 자리도 상태를 가질 수 있다(채우기 모드의 picked·miss) */
   states?: Record<string, FretState>
-  view: FretView
-  /** 0..1, view=player 때만 */
+  /** 0..1. 0 = 평면, > 0 = 연주자 시점(6차: view prop 삭제) */
   tilt?: number
   /** true 면 부모 크기를 가득 채운다(그립). false 면 폭 100%·높이 비율 고정 */
   fill?: boolean
@@ -44,6 +45,7 @@ const grad = (id: string, vertical: boolean, stops: [number, string][]) => (
 
 export function Fretboard(p: FretboardProps) {
   const [lo, hi] = p.frets
+  const tilt = p.tilt ?? 0
   const n = p.tuning.strings.length
   const states = p.states ?? {}
   const ref = useRef<HTMLDivElement>(null)
@@ -175,7 +177,7 @@ export function Fretboard(p: FretboardProps) {
 
   const vb = `0 0 ${L.w} ${L.h}`, pct = (v: number) => `${(v / L.h) * 100}%`
   return (
-    <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={p.view} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': p.view === 'player' ? p.tilt ?? 0.6 : 0, '--fb-u': 1 / scale, '--fb-hn': hn * scale }}>
+    <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={tilt > 0 ? 'player' : 'flat'} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': tilt, '--fb-u': 1 / scale, '--fb-hn': hn * scale }}>
       <div class="fb-stage" style={{ transformOrigin: `50% ${pct(L.bottom)}` }}>
         <svg class="fb-base" viewBox={vb} aria-hidden="true">
           <defs>
@@ -197,7 +199,7 @@ export function Fretboard(p: FretboardProps) {
           </svg>
         )}
         <svg class="fb-z1" viewBox={vb} aria-hidden="true">{nut}{strings}</svg>
-        <svg class="fb-z2" viewBox={vb} role="img" aria-label={`프렛보드 ${p.tuning.name} ${lo}–${hi}프렛`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+        <svg class="fb-z2" viewBox={vb} role="img" aria-label={fmt(tr(S.board), { tuning: localName(p.tuning), lo, hi })} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           {markNodes}{cells}
         </svg>
       </div>

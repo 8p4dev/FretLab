@@ -6,12 +6,13 @@
 }
 
 /* 시작 화면: .empty 타일 하나 + 나가기 */
-.grip-intro { place-items: center; align-content: center; gap: 1rem; grid-template-rows: none; padding: 1.5rem; }
+.grip-intro { grid-template-columns: minmax(0, 1fr); /* QA6 #1: 긴 스케일 바가 열 폭을 키우지 않게 */ place-items: center; align-content: center; gap: 1rem; grid-template-rows: none; padding: 1.5rem; }
 .grip-start { max-width: 28rem; min-height: 11rem; font-size: var(--fs-lg); animation: rise var(--t-med) var(--ease-out); }
 /* 시작 전 스케일·옵션 한 줄 + 타일 아래 설명 */
 .grip-intro-row { display: flex; align-items: center; gap: .5rem; width: 100%; max-width: 28rem; }
 .grip-intro-row > .scale-bar { flex: 1; min-width: 0; }
-.grip-help { margin: 0; max-width: 28rem; text-align: center; font-size: var(--fs-sm); line-height: 1.5; }
+.grip-note { margin: 0; max-width: 28rem; text-align: center; font-size: var(--fs-md); font-weight: 500; line-height: 1.5; text-wrap: balance; }
+.grip-help { margin: 0; max-width: 28rem; text-align: center; font-size: var(--fs-sm); line-height: 1.5; text-wrap: balance; }
 
 /* 오버레이: 불투명 surface + 1px 선. 접힘은 grid 1fr → 0fr (모션 토큰) */
 .grip-bar-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--t-med) var(--ease-out); }
@@ -25,12 +26,12 @@
 /* 패딩·선까지 0 이어야 높이가 정말 0 */
 .grip-bar-wrap[data-hidden] .grip-bar { padding-block: 0; border-bottom-width: 0; }
 .grip-bar .scale-bar { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 세로: 스케일 이름·음소거·나가기만 남긴다(프렛보드가 없으니 포지션·모드는 의미 없음) */
-@media (orientation: portrait) { .grip-pos, .grip-bar > .seg, .grip-progress { display: none; } }
 .grip-bar > .seg { flex: none; }
 .grip-pos { display: inline-flex; align-items: center; gap: .1rem; flex: none; font-size: var(--fs-sm); font-weight: 600; }
 .grip-progress { font-size: var(--fs-sm); flex: none; }
 .grip-spacer { flex: 1; }
+/* 세로: 스케일 이름·음소거·나가기만 남긴다(프렛보드가 없으니 포지션·모드는 의미 없음). display 를 주는 규칙들 뒤에 둬야 이긴다 */
+@media (orientation: portrait) { .grip-pos, .grip-bar > .seg, .grip-progress { display: none; } }
 /* 접힌 동안 위쪽 가장자리 탭 표적(24px). ::after 가 상단 중앙 28×4 pill 핸들 */
 .grip-edge { position: absolute; top: 0; left: 0; right: 0; height: 24px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; z-index: 2; }
 .grip-edge::after { content: ''; position: absolute; top: 4px; left: 50%; width: 28px; height: 4px; margin-left: -14px; border-radius: 2px; background: var(--border-strong); }

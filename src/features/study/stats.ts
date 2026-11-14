@@ -1,5 +1,8 @@
 // 학습 기록 — 공유 계약 orchestration_fretlab.md §3.7·A5 (에이전트 D 소유). localStorage 'fretlab:stats', 키별 누적(간격 반복 없음).
 import type { PositionSystem, StudyMode } from '../../core/types'
+import { fmt, tr } from '../../core/i18n'
+import type { Lang } from '../../core/i18n'
+import { S } from './strings'
 
 export type Stat = { attempts: number; correct: number; total: number; /** 마지막 기록 시각(ms) */ last: number }
 const KEY = 'fretlab:stats'
@@ -24,5 +27,6 @@ export function recordResult(key: string, r: { correct: number; total: number })
   return s
 }
 export const statsFor = (key: string): Stat => load()[key] ?? EMPTY
-/** 요약 한 줄: "정답률 80%(3회)" · 기록 없으면 '' */
-export const statsLine = (s: Stat): string => (s.attempts ? `정답률 ${Math.round((s.correct / Math.max(1, s.total)) * 100)}%(${s.attempts}회)` : '')
+/** 요약 한 줄: "Accuracy 80% (3 tries)" · 기록 없으면 ''. lang 생략 = 현재 설정 언어 */
+export const statsLine = (s: Stat, lang?: Lang): string =>
+  s.attempts ? fmt(tr(S.stats, lang), { p: Math.round((s.correct / Math.max(1, s.total)) * 100), n: s.attempts }) : ''

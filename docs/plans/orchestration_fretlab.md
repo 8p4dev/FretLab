@@ -136,7 +136,7 @@ A 는 파일을 `notes.ts scales.ts tunings.ts fretboard.ts positions.ts` 로 �
 ## 진행 기록
 
 - groundwork(2026-11-14): git init, Vite 7 + Preact 10 + TS 5.9 + oxlint + vite-plugin-pwa, DrillDown `index.css`·`ui/*`·Toast·feel 이식(React → preact/hooks, `useSyncExternalStore` → `core/store.ts`), 공유 타입·설정 스토어·라우터·앱 셸, 스텁 6개. typecheck 0 / lint 0 / check ok / build OK(JS 9.82 KB + CSS 3.54 KB gzip).
-- 1차 dispatch(2026-11-14, 시작 커밋 5b9bf4f, Run `run_da7d6e276c81`, 워크트리 `C:/Users/User/orca/workspaces/FretLab/agent-*`): A ctx_c8f2283aeb8c(agent-A-music) · B ctx_cd545bd7fce3(agent-B-fretboard) · C ctx_618c508885d2(agent-C-audio) · D ctx_6be6483080f7(agent-D-study) · E ctx_3644ef4181ee(agent-E-grip) · F ctx_781a0390d0ed(agent-F-picker). 지시 원문은 오케스트레이터 scratch `fretlab-specs/spec_*.md`.
+- 1차 dispatch(2026-11-14, 시작 커밋 5b9bf4f): A 음악 · B 프렛보드 · C 사운드 · D 학습 · E 그립 · F 선택 UI 병렬 시작.
 - C 완료 → **머지 main**(5802666 기준, fast-forward 아님·충돌 0). typecheck 0 / lint 0 / check ok / audio.check ok / build OK(JS 10.30 KB + CSS 3.54 KB gzip). C 미결: 실제 스피커 청감은 통합 후 사용자 확인, `audio.check` 는 `npx tsx src/core/audio/audio.check.ts`(package.json 은 오케스트레이터가 통합 때 `check` 스크립트에 합침).
 - F 완료 → **머지 main**(43e67c5, 충돌 0). typecheck 0 / lint 0 / check ok(music·audio·search) / build OK(JS 13.07 KB + CSS 3.87 KB gzip). `check` 스크립트에 search.check 합침. F 참고: ScaleBar 버튼과 시트 dialog 의 접근 가능한 이름이 같아('스케일 선택'·'옵션') E2E 는 role 로 구분.
 - B 완료 → **머지 main**(f4e7178, 충돌 0). typecheck 0 / lint 0 / check ok / build OK(JS 14.41 KB + CSS 4.36 KB gzip). B 보고: 390 폭에 16칸을 그리면 라벨 ≈5px → D 에게 `send`(msg_a7df2ee94f64): ≤760 폭·full 또는 9칸 초과 포지션은 StudyPage 가 9칸 이하 창으로 나눠 넘기게. 키보드 셀 탐색은 범위 밖.

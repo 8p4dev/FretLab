@@ -3,18 +3,21 @@ import { I } from './icons'
 import { Icon } from './Icon'
 import { useTheme, type Theme } from './theme'
 import { haptic } from '../features/feel'
+import { useT, type Str } from '../core/i18n'
+import { S } from '../strings'
 
-const CELLS: { v: Theme; icon: string; label: string }[] = [
-  { v: 'light', icon: I.sun, label: '라이트' },
-  { v: 'dark', icon: I.moon, label: '다크' },
+const CELLS: { v: Theme; icon: string; label: Str }[] = [
+  { v: 'light', icon: I.sun, label: S.light },
+  { v: 'dark', icon: I.moon, label: S.dark },
 ]
 
 export default function ThemeToggle() {
   const { theme, set } = useTheme()
+  const { t } = useT()
   return (
-    <div role="group" aria-label="테마" className="seg theme-toggle">
+    <div role="group" aria-label={t(S.theme)} className="seg theme-toggle">
       {CELLS.map((c) => (
-        <button key={c.v} type="button" aria-pressed={theme === c.v} aria-label={c.label} data-tip={c.label} onClick={() => { set(c.v); haptic('tap') }}>
+        <button key={c.v} type="button" aria-pressed={theme === c.v} aria-label={t(c.label)} data-tip={t(c.label)} onClick={() => { set(c.v); haptic('tap') }}>
           <Icon d={c.icon} size={16} />
         </button>
       ))}

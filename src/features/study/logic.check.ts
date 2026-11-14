@@ -68,11 +68,12 @@ const marks = [mk(1, 7), mk(0, 5, true), mk(0, 8), mk(1, 5), mk(2, 7)]
   const key = statsKey({ root: 9, scaleId: 'minor-pentatonic', tuningId: 'standard', system: 'caged', position: 2 }, 'fill')
   assert.equal(key, '9:minor-pentatonic:standard:caged:2:fill')
   assert.deepEqual(statsFor(key), { attempts: 0, correct: 0, total: 0, last: 0 })
-  assert.equal(statsLine(statsFor(key)), '')
+  assert.equal(statsLine(statsFor(key), 'en'), '')
   recordResult(key, { correct: 3, total: 5 })
   const s = recordResult(key, { correct: 5, total: 5 })
   assert.equal(s.attempts, 2); assert.equal(s.correct, 8); assert.equal(s.total, 10); assert.ok(s.last > 0)
-  assert.equal(statsLine(s), '정답률 80%(2회)')
+  assert.equal(statsLine(s, 'en'), 'Accuracy 80% (2 tries)')
+  assert.equal(statsLine(s, 'ko'), '정답률 80% (2회)')
   assert.equal(statsFor('없는 키').attempts, 0)
 }
 

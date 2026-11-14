@@ -2,11 +2,18 @@
 
 /* 상단: ScaleBar + 모드 탭 + 도구 (DrillDown TreeHeader) */
 .study-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.study-head .seg a { min-height: var(--tap); }
+/* 도구 묶음(모드 탭 + 기울기 + 톱니): 좁으면 ScaleBar 아래 줄로 통째로 내려간다(톱니만 혼자 떨어지지 않게) */
+.study-tools { display: flex; align-items: center; gap: .75rem; flex: 1 1 auto; min-width: 0; }
+.study-head .seg { flex: none; }
+.study-head .seg a { min-height: var(--tap); white-space: nowrap; }
 .study-spacer { flex: 1; }
+/* PC 퀵 기울기(S3): 마우스 + 넓은 폭에서만. 0 = 평면 */
+.study-tilt { display: none; align-items: center; gap: .5rem; font-size: var(--fs-sm); white-space: nowrap; }
+.study-tilt input { width: 7rem; min-height: var(--tap); margin: 0; accent-color: var(--text); }
+@media (hover: hover) and (min-width: 761px) { .study-tilt { display: inline-flex; } }
 
 /* 포지션 줄: ◂ n/N ▸ */
-.study-pos { display: flex; align-items: center; justify-content: center; gap: .25rem; margin-bottom: .75rem; font-size: var(--fs-sm); color: var(--text-2); }
+.study-pos { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: .25rem; margin-bottom: .75rem; font-size: var(--fs-sm); color: var(--text-2); }
 .study-pos strong { color: var(--text); font-weight: 700; }
 .study-pos + .study-win { margin-top: -.5rem; }
 
@@ -17,7 +24,7 @@
 /* 행동 바: PC 는 흐름 + 가운데 */
 .study-bar { justify-content: center; align-items: center; gap: .75rem; margin-top: 1rem; }
 .study-bar:empty { display: none; }
-.study-bar button { gap: .4rem; min-height: var(--tap); }
+.study-bar button { gap: .4rem; min-height: var(--tap); white-space: nowrap; }
 .study-progress { font-size: var(--fs-md); padding-inline: .5rem; }
 .study-progress strong { color: var(--text); font-weight: 700; }
 
@@ -42,7 +49,7 @@
 
 /* 모바일: 바는 하단 고정(flash-nav 패턴). 바 높이 = 44px 버튼 + 위아래 .5rem + 테두리 */
 @media (max-width: 760px) {
-  .study-head { gap: .5rem; }
+  .study-head, .study-tools { gap: .5rem; }
   .study-bar {
     position: fixed; left: 0; right: 0; bottom: var(--kb); z-index: 9; flex-wrap: nowrap; gap: .5rem; margin: 0;
     padding: .5rem max(.85rem, env(safe-area-inset-right)) calc(.5rem + var(--safe-b)) max(.85rem, env(safe-area-inset-left));
@@ -50,6 +57,10 @@
   }
   .study-bar button { flex: 1; min-height: 44px; font-size: var(--fs-md); }
   .study-bar button.primary { flex: 2; }
+  /* 진행 글이 있으면 버튼은 글자 폭만(긴 ja/en 문구가 버튼 안에서 줄바꿈되지 않게), 남는 폭은 진행 글이 쓰고 넘치면 글이 줄바꿈 */
+  .study-progress { flex: 1 1 0; min-width: 0; padding-inline: 0; font-size: var(--fs-sm); }
+  .study-progress ~ button { flex: 0 0 auto; }
+  .study-progress ~ button.primary { flex: 0 1 8rem; }
   .study-bar:empty { display: none; }
   .study { padding-bottom: calc(60px + var(--safe-b)); }
   .study-summary-nums { gap: .5rem; }
