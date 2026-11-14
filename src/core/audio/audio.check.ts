@@ -1,5 +1,5 @@
 // 자가 검사(순수 부분) — `npx tsx src/core/audio/audio.check.ts`. Web Audio 는 Node 에 없어 index.ts 는 검사하지 않는다.
-import { hardClipCurve, midiToHz, pluckBuffer, pluckPeriod, softClipCurve, volumeToGain } from './synth.ts'
+import { hardClipCurve, midiToHz, pickZone, pluckBuffer, pluckPeriod, softClipCurve, volumeToGain, zoneRate, type Zone } from './synth.ts'
 
 const ok = (cond: boolean, msg: string) => { if (!cond) throw new Error(msg) }
 const near = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) < eps
@@ -42,5 +42,16 @@ ok(softClipCurve()[512] < hardClipCurve()[512] + 0.01 && hardClipCurve(1024, 4)[
 // 볼륨
 ok(volumeToGain(0) === 0 && volumeToGain(1) === 1 && volumeToGain(2) === 1 && volumeToGain(-1) === 0, 'volume clamps')
 ok(volumeToGain(0.5) < 0.5 && volumeToGain(0.5) > volumeToGain(0.3), 'volume curve')
+
+// 샘플 존 선택·playbackRate
+const zone = (lo: number, hi: number, root: number, fine = 0): Zone =>
+  ({ lo, hi, root, coarse: 0, fine, sampleRate: 22050, loopStart: 100, loopEnd: 200, file: `${root}.mp3` })
+const zones = [zone(36, 44, 40), zone(45, 49, 45), zone(50, 54, 50, -10)]
+ok(pickZone(zones, 45).root === 45 && near(zoneRate(pickZone(zones, 45), 45), 1), 'midi 45 → root 45, rate 1')
+ok(near(zoneRate(pickZone(zones, 47), 47), 2 ** (2 / 12)), 'midi 47 → 2^(2/12)')
+ok(pickZone(zones, 36).root === 40 && near(zoneRate(zones[0], 36), 2 ** (-4 / 12)), 'midi 36 → root 40 아래로')
+ok(pickZone(zones, 20).root === 40 && pickZone(zones, 100).root === 50, '범위 밖 → 가장 가까운 root')
+ok(near(zoneRate(zones[2], 50), 2 ** (-10 / 1200)), 'fine −10 센트 → rate 2^(−10/1200)')
+ok(near(zoneRate({ ...zones[1], coarse: 1 }, 45), 2 ** (1 / 12)), 'coarse 1 → 반음 위')
 
 console.log('audio.check ok')

@@ -25,6 +25,21 @@ export function pluckBuffer(hz: number, sampleRate: number, seconds = 2.5, t60 =
   return out
 }
 
+/** 샘플 존 — public/tones/<tone>.json (scripts/extract-tones.mjs 산출). loop 은 zone.sampleRate 기준 샘플 번호 */
+export interface Zone {
+  lo: Midi; hi: Midi; root: number; coarse: number; fine: number
+  sampleRate: number; loopStart: number; loopEnd: number; file: string
+}
+
+/** 키 범위에 맞는 존, 없으면 root 가 가장 가까운 존 */
+export const pickZone = <Z extends Zone>(zones: Z[], midi: Midi): Z =>
+  zones.find((z) => z.lo <= midi && midi <= z.hi) ??
+  zones.reduce((a, b) => (Math.abs(b.root - midi) < Math.abs(a.root - midi) ? b : a))
+
+/** 존 샘플을 midi 높이로 내는 playbackRate (WebAudioFontPlayer 와 같은 식, coarse 는 반음·fine 은 센트) */
+export const zoneRate = (z: Zone, midi: Midi): number =>
+  2 ** ((100 * midi - (z.root * 100 - 100 * z.coarse - z.fine)) / 1200)
+
 /** tanh 소프트 클리핑 커브(WaveShaper 용). 입력 [-1,1] → 출력 [-1,1] 단조 */
 export function softClipCurve(n = 1024, drive = 3): Float32Array<ArrayBuffer> {
   const c = new Float32Array(n), k = Math.tanh(drive)

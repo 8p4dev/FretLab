@@ -35,8 +35,10 @@
 ## 5. 머지·검증
 C4 머지 → typecheck/lint/check/build → `npm run e2e` 4/4 → `vite preview` 에서 `/tones/clean.json` 200, Playwright 로 탭 뒤 `AudioBufferSourceNode.buffer.duration` 이 샘플 길이(≈1~4 s, KS 는 정확히 2.5 s)인지 확인 → 오케스트레이터가 청취 페이지와 앱을 같이 열어 캐릭터 일치 확인은 사용자 몫.
 
-## 6. 결과
-(머지 뒤)
+## 6. 결과 (2026-11-14)
+- T1~T7 완료: C4 커밋 56b33d4·b4471e8 머지(3e14c02). `public/tones/clean` 10존 186 KB · `distortion` 11존 112 KB(중복 제거, WebAudioFont findZone 규칙), 지연 로드 + KS 폴백, 디스토션 버스에서 WaveShaper 제거, DECAY clean 1.0 / distortion 1.5(워커 변경 사항).
+- 검증: typecheck 0 · lint 0 · check 5/5 · build JS 24.50(+0.20) + CSS 5.86 KB gzip · `dist/sw.js` precache 에 tones 0건 · E2E 4/4 · 오케스트레이터 dev 서버 확인: 첫 탭 KS 2.5 s → 두 번째 탭 샘플 1.879 s, 디스토션 선택 뒤 미리듣기 KS → 샘플 0.988 s, 콘솔 오류 0.
+- 미결: Aspirin 원 사운드폰트 라이선스 미확인(`docs/licenses/Aspirin.md`). 톤을 바꾼 직후 첫 미리듣기는 로드 중이라 KS 로 남(≈1 s). 청감 일치는 사용자 확인.
 
 ## 진행 기록
 - 2026-11-14 groundwork(T1) 커밋, C4 디스패치.
