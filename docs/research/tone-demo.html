@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FretLab 톤 비교</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.5; }
+  body { margin: 0 auto; max-width: 56rem; padding: 1.5rem 1rem 4rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; } h2 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+  p { margin: .25rem 0; } .muted { opacity: .65; font-size: .85rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; align-items: center; }
+  button { font: inherit; padding: .5rem .85rem; border: 1px solid #888; border-radius: 2px; background: transparent; color: inherit; cursor: pointer; min-height: 44px; }
+  button[data-state='loading'] { opacity: .5; } button[data-state='ready'] { border-color: currentColor; font-weight: 600; } button[data-state='error'] { border-color: #d1242f; color: #d1242f; }
+  label { display: inline-flex; gap: .4rem; align-items: center; }
+  table { border-collapse: collapse; font-size: .85rem; } td, th { border-bottom: 1px solid #8884; padding: .3rem .6rem; text-align: left; }
+</style>
+</head>
+<body>
+<h1>FretLab 톤 비교</h1>
+<p class="muted">같은 프레이즈(A 마이너 펜타토닉 상행·하행 + 더블스탑)를 후보 음원으로 들려준다. 버튼을 누르면 그 음원을 내려받아(외부 요청) 재생한다. 이 페이지는 앱 번들에 들어가지 않는다 — 비교용.</p>
+<div class="row">
+  <label>프레이즈 <select id="phrase"><option value="lick">펜타토닉 릭</option><option value="scale">스케일 상행 (E2~E5)</option><option value="chord">파워코드 A5·D5·E5</option></select></label>
+  <label>간격 <input id="gap" type="range" min="90" max="400" value="170"> <span id="gapv">170</span>ms</label>
+  <label><input id="amp" type="checkbox"> 샘플을 FretLab 앰프(록 소프트클립·메탈 하드클립)에 통과 <select id="ampTone"><option value="rock">록</option><option value="metal">메탈</option></select></label>
+</div>
+
+<h2>0. 현재 FretLab 합성 (Karplus-Strong, 에셋 0)</h2>
+<div class="row" id="ks"></div>
+
+<h2>1. WebAudioFont — 사운드폰트에서 뽑은 프리셋 (GM 25~30번)</h2>
+<p class="muted">파일 하나 = 악기 하나(존 여러 개, base64 ogg). FretLab 에 넣을 땐 필요한 존 6~8개만 잘라 ~60–150 KB. 출처: FluidR3(CC BY 3.0) · GeneralUser GS(자체 무료 라이선스) · SBLive/Chaos/Aspirin/JCLive(원 사운드폰트 라이선스 확인 필요) · Stratocaster/LesPaul(개별 사운드폰트).</p>
+<div class="row" id="waf"></div>
+
+<h2>2. tonejs-instruments 샘플 (CC BY 3.0, 코드 MIT)</h2>
+<p class="muted">guitar-electric(Karoryfer 녹음)·guitar-acoustic(Iowa). mp3 한 음 ≈ 100–280 KB → 가까운 샘플을 playbackRate 로 피치 이동.</p>
+<div class="row" id="tj"></div>
+
+<h2>후보별 메모</h2>
+<table id="notes"><tr><th>후보</th><th>라이선스</th><th>앱 추가 용량(추정)</th><th>비고</th></tr></table>
+
+<script src="https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js"></script>
+<script>
+const $ = (s) => document.querySelector(s)
+const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' })
+const master = new GainNode(ctx, { gain: 0.8 })
+const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 4, ratio: 12, attack: 0.002, release: 0.12 })
+limiter.connect(master).connect(ctx.destination)
+
+// ── FretLab 앰프 체인(src/core/audio/index.ts 와 같은 구성) ──
+const filter = (type, frequency, Q = 0.7, gain = 0) => new BiquadFilterNode(ctx, { type, frequency, Q, gain })
+const g = (v) => new GainNode(ctx, { gain: v })
+const curve = (fn, n = 1024) => { const c = new Float32Array(n); for (let i = 0; i < n; i++) c[i] = fn((2 * i) / (n - 1) - 1); return c }
+const soft = curve((x) => Math.tanh(3 * x) / Math.tanh(3)), hard = curve((x) => Math.max(-1, Math.min(1, 4 * x)))
+const shaper = (c) => new WaveShaperNode(ctx, { curve: c, oversample: '2x' })
+const chain = (nodes) => { nodes.reduce((a, b) => (a.connect(b), b)).connect(limiter); return nodes[0] }
+const buses = {
+  acoustic: chain([filter('peaking', 170, 1.2, 6), filter('lowpass', 5000)]),
+  rock: chain([g(8), shaper(soft), filter('lowpass', 4500), g(0.35)]),
+  metal: chain([filter('highpass', 120), g(40), shaper(hard), filter('peaking', 800, 0.8, -12), filter('lowpass', 6000), g(0.3)]),
+}
+const ampOut = () => ($('#amp').checked ? buses[$('#ampTone').value] : limiter)
+
+// ── 프레이즈 ──
+const PHRASES = {
+  lick: [57, 60, 62, 64, 67, 69, 67, 64, 62, 60, 57, 55, 52, 50, 48, 45, [45, 52], [45, 52]],
+  scale: [40, 43, 45, 48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74, 76],
+  chord: [[45, 52, 57], [45, 52, 57], [50, 57, 62], [50, 57, 62], [52, 59, 64], [52, 59, 64], [45, 52, 57]],
+}
+const hz = (m) => 440 * 2 ** ((m - 69) / 12)
+$('#gap').oninput = () => ($('#gapv').textContent = $('#gap').value)
+async function play(voice) {
+  await ctx.resume()
+  const gap = Number($('#gap').value) / 1000, ph = PHRASES[$('#phrase').value]
+  const t0 = ctx.currentTime + 0.05
+  ph.forEach((n, i) => { const t = t0 + i * gap; for (const m of [].concat(n)) voice(m, t, Math.max(gap * 1.5, 1.2)) })
+}
+const btn = (parent, label, voiceFactory, meta) => {
+  const b = document.createElement('button'); b.textContent = label; parent.appendChild(b)
+  let voice = null
+  b.onclick = async () => {
+    try {
+      if (!voice) { b.dataset.state = 'loading'; voice = await voiceFactory(); b.dataset.state = 'ready' }
+      await play(voice)
+    } catch (e) { b.dataset.state = 'error'; b.title = String(e); console.error(label, e) }
+  }
+  if (meta) { const tr = document.createElement('tr'); tr.innerHTML = `<td>${label}</td><td>${meta[0]}</td><td>${meta[1]}</td><td>${meta[2]}</td>`; $('#notes').appendChild(tr) }
+  return b
+}
+
+// ── 0. Karplus-Strong(src/core/audio/synth.ts 와 같은 알고리즘) ──
+function pluck(f, sr, seconds = 2.5, t60 = 2.2) {
+  const N = Math.max(2, Math.round(sr / f - 0.5)), len = Math.floor(sr * seconds), out = new Float32Array(len), rho = 0.001 ** (1 / (f * t60))
+  let lp = 0
+  for (let i = 0; i < N; i++) { lp += 0.6 * ((Math.random() * 2 - 1) - lp); out[i] = lp }
+  for (let i = N + 1; i < len; i++) out[i] = rho * 0.5 * (out[i - N] + out[i - N - 1])
+  out[N] = rho * 0.5 * out[0]
+  const fade = Math.floor(sr * 0.05); for (let i = 0; i < fade; i++) out[len - 1 - i] *= i / fade
+  return out
+}
+const DECAY = { acoustic: 0.45, rock: 0.8, metal: 1.2 }
+const ksVoice = (tone) => async () => (m, t, d) => {
+  const f = hz(m), N = Math.max(2, Math.round(ctx.sampleRate / f - 0.5))
+  const b = new AudioBuffer({ length: Math.floor(ctx.sampleRate * 2.5), sampleRate: ctx.sampleRate }); b.copyToChannel(pluck(f, ctx.sampleRate), 0)
+  const src = new AudioBufferSourceNode(ctx, { buffer: b, playbackRate: (f * (N + 0.5)) / ctx.sampleRate })
+  const gn = g(0.84); gn.gain.setTargetAtTime(0, t + 0.03, DECAY[tone])
+  src.connect(gn).connect(buses[tone]); src.start(t); src.stop(t + 2.5)
+}
+for (const tone of ['acoustic', 'rock', 'metal']) btn($('#ks'), `KS ${tone}`, ksVoice(tone), ['없음(합성)', '0 KB', '현재 앱. 플럭 질감이 단순하고 바디·픽업 공진이 없음'])
+
+// ── 1. WebAudioFont ──
+const player = new WebAudioFontPlayer()
+const WAF = [
+  ['Acoustic steel · FluidR3', '0250_FluidR3_GM_sf2_file', 'CC BY 3.0', '≈70 KB(존 6개)', '503 KB 전체'],
+  ['Acoustic steel · GeneralUserGS', '0250_GeneralUserGS_sf2_file', 'GeneralUser GS 라이선스(무료·재배포 가능, 라이선스 문서 동봉)', '≈40 KB', '120 KB 전체'],
+  ['Jazz(험버커 클린) · FluidR3', '0260_FluidR3_GM_sf2_file', 'CC BY 3.0', '≈60 KB', '294 KB'],
+  ['Clean · FluidR3', '0270_FluidR3_GM_sf2_file', 'CC BY 3.0', '≈60 KB', '257 KB'],
+  ['Clean · GeneralUserGS', '0270_GeneralUserGS_sf2_file', 'GeneralUser GS', '≈45 KB', '165 KB'],
+  ['Clean · Stratocaster(개별 sf2)', '0270_Stratocaster_sf2_file', '확인 필요', '≈120 KB', '747 KB'],
+  ['Clean · Gibson Les Paul(개별 sf2)', '0270_Gibson_Les_Paul_sf2_file', '확인 필요', '≈80 KB', '312 KB'],
+  ['Clean · SBLive', '0270_SBLive_sf2', 'Creative 번들 — 재배포 불가 가능성', '≈30 KB', '85 KB'],
+  ['Muted · FluidR3', '0280_FluidR3_GM_sf2_file', 'CC BY 3.0', '≈45 KB', '161 KB'],
+  ['Overdriven · FluidR3', '0290_FluidR3_GM_sf2_file', 'CC BY 3.0', '≈140 KB', '848 KB'],
+  ['Overdriven · GeneralUserGS', '0290_GeneralUserGS_sf2_file', 'GeneralUser GS', '≈80 KB', '321 KB'],
+  ['Overdriven · LesPaul(개별 sf2)', '0290_LesPaul_sf2_file', '확인 필요', '≈110 KB', '504 KB'],
+  ['Distortion · FluidR3', '0300_FluidR3_GM_sf2_file', 'CC BY 3.0', '≈130 KB', '781 KB'],
+  ['Distortion · GeneralUserGS', '0300_GeneralUserGS_sf2_file', 'GeneralUser GS', '≈45 KB', '148 KB'],
+  ['Distortion · Chaos', '0300_Chaos_sf2_file', '확인 필요', '≈60 KB', '229 KB'],
+  ['Distortion · Aspirin', '0300_Aspirin_sf2_file', '확인 필요', '≈80 KB', '323 KB'],
+  ['Distortion · JCLive', '0300_JCLive_sf2_file', '확인 필요', '≈110 KB', '477 KB'],
+  ['Distortion · LesPaul(개별 sf2)', '0300_LesPaul_sf2_file', '확인 필요', '≈200 KB', '1.2 MB'],
+  ['Distortion · SBLive', '0300_SBLive_sf2', 'Creative 번들 — 재배포 불가 가능성', '≈35 KB', '110 KB'],
+]
+for (const [label, file, lic, est, full] of WAF) {
+  btn($('#waf'), label, async () => {
+    const name = '_tone_' + file
+    await new Promise((res, rej) => { player.loader.startLoad(ctx, `https://surikov.github.io/webaudiofontdata/sound/${file}.js`, name); player.loader.waitLoad(res); setTimeout(() => rej(new Error('timeout')), 30000) })
+    const preset = window[name]
+    return (m, t, d) => player.queueWaveTable(ctx, ampOut(), preset, t, m, d, 0.6)
+  }, [lic, est, `원본 파일 ${full} · 프리셋 페이지 surikov.github.io/webaudiofontdata/sound/${file}.html`])
+}
+
+// ── 2. tonejs-instruments ──
+const TJ = {
+  'guitar-electric': ['E2', 'A2', 'C3', 'Ds3', 'A3', 'A4'],
+  'guitar-acoustic': ['E2', 'A2', 'C3', 'Ds3', 'A3', 'A4'],
+}
+const noteMidi = (n) => { const m = n.match(/^([A-G])(s?)(\d)$/); return [0, 2, 4, 5, 7, 9, 11]['CDEFGAB'.indexOf(m[1])] + (m[2] ? 1 : 0) + 12 * (Number(m[3]) + 1) }
+for (const [inst, notes] of Object.entries(TJ)) {
+  btn($('#tj'), inst, async () => {
+    const bufs = await Promise.all(notes.map(async (n) => {
+      const r = await fetch(`https://nbrosowsky.github.io/tonejs-instruments/samples/${inst}/${n}.mp3`)
+      if (!r.ok) throw new Error(`${n}.mp3 ${r.status}`)
+      return [noteMidi(n), await ctx.decodeAudioData(await r.arrayBuffer())]
+    }))
+    return (m, t, d) => {
+      const [base, buf] = bufs.reduce((a, b) => (Math.abs(b[0] - m) < Math.abs(a[0] - m) ? b : a))
+      const src = new AudioBufferSourceNode(ctx, { buffer: buf, playbackRate: 2 ** ((m - base) / 12) })
+      const gn = g(0.7); gn.gain.setTargetAtTime(0, t + d, 0.15)
+      src.connect(gn).connect(ampOut()); src.start(t); src.stop(t + d + 1)
+    }
+  }, ['CC BY 3.0(샘플) · MIT(코드)', '≈150–300 KB(6음 ogg 재인코딩 시 ≈60 KB)', inst === 'guitar-electric' ? 'Karoryfer 녹음 클린 톤. 디스토션은 FretLab 앰프로' : 'Iowa 어쿠스틱'])
+}
+</script>
+</body>
+</html>

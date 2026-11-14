@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "check": "tsx src/core/music/music.check.ts && tsx src/core/audio/audio.check.ts && tsx src/features/picker/search.check.ts && tsx src/features/study/logic.check.ts",
+    "check": "tsx src/core/music/music.check.ts && tsx src/core/audio/audio.check.ts && tsx src/features/fretboard/geometry.check.ts && tsx src/features/picker/search.check.ts && tsx src/features/study/logic.check.ts",
     "e2e": "playwright test"
   },
   "dependencies": {

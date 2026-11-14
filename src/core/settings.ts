@@ -4,7 +4,7 @@ import type { Settings } from './types'
 
 export const DEFAULTS: Settings = {
   root: 9, scaleId: 'minor-pentatonic', tuningId: 'standard', accidental: 'sharp', labelMode: 'note',
-  tone: 'rock', volume: .8, muted: false, system: 'full', position: 0, fretCount: 15, view: 'flat', tilt: .6,
+  tone: 'clean', volume: .8, muted: false, system: 'full', position: 0, fretCount: 15, view: 'flat', tilt: .6,
 }
 const KEY = 'fretlab:settings'
 const subs = new Set<() => void>()
@@ -12,7 +12,14 @@ const subs = new Set<() => void>()
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) }
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<Settings>
+      // 4차: 옛 톤 이름(acoustic/rock/metal) → clean/distortion
+      const old = p.tone as string | undefined
+      if (old === 'acoustic') p.tone = 'clean'
+      else if (old === 'rock' || old === 'metal') p.tone = 'distortion'
+      return { ...DEFAULTS, ...p }
+    }
   } catch { /* 사생활 모드 등 */ }
   return DEFAULTS
 }

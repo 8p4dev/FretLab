@@ -55,7 +55,8 @@ export type Position = {
   marks: Mark[]
 }
 
-export type Tone = 'acoustic' | 'rock' | 'metal'
+/** 4차(톤 라운드)에서 클린/디스토션 2종으로 변경. 샘플: 클린 = FluidR3 GM 27, 디스토션 = Aspirin GM 30 */
+export type Tone = 'clean' | 'distortion'
 export type StudyMode = 'view' | 'fill' | 'follow'
 export type FretView = 'flat' | 'player'
 

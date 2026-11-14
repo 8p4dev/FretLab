@@ -1,10 +1,11 @@
-// 프렛보드 — 공유 계약 orchestration_fretlab.md §3.5 (에이전트 B 소유). SVG 하나에 줄 이름·줄·프렛·너트·인레이·번호·마크·라벨·탭 셀.
-// view=player 는 래퍼 CSS 3D(fretboard.css), fill 은 ResizeObserver 로 부모 px 를 읽어 1단위 = 1px 로 그린다(그립 모드).
+// 프렛보드 — 공유 계약 orchestration_fretlab.md §3.5 (에이전트 B 소유). SVG 하나에 지판·인레이·프렛·너트·줄·줄 이름·번호·마크·라벨·탭 셀.
+// 실물 그리기(3차 R1): 색은 fretboard.css 의 --fb-*, 칸 폭은 geometry.wirePos. 줄·프렛 굵기는 화면 px 기준(ResizeObserver 배율).
+// view=player 는 래퍼 CSS 3D(fretboard.css), fill 은 부모 px 를 읽어 1단위 = 1px 로 그린다(그립 모드).
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Accidental, FretPos, FretState, FretView, LabelMode, Mark, Tuning } from '../../core/types'
 import { posKey } from '../../core/types'
 import { labelOf, midiToPc, noteName } from '../../core/music'
-import { DOUBLE_INLAY, INLAY, firstEntry, layout, showNumber, stringWidth } from './geometry'
+import { DOUBLE_INLAY, INLAY, firstEntry, isWound, layout, showNumber, stringPx, wirePx } from './geometry'
 import './fretboard.css'
 
 export type FretboardProps = {
@@ -32,6 +33,12 @@ export type FretboardProps = {
 const NS = 'vector-effect'
 const PRESS_MS = 160
 
+const grad = (id: string, vertical: boolean, stops: [number, string][]) => (
+  <linearGradient id={id} x1="0" y1="0" x2={vertical ? 0 : 1} y2={vertical ? 1 : 0}>
+    {stops.map(([o, c]) => <stop key={o} offset={o} class={`fb-c-${c}`} />)}
+  </linearGradient>
+)
+
 export function Fretboard(p: FretboardProps) {
   const [lo, hi] = p.frets
   const n = p.tuning.strings.length
@@ -43,17 +50,18 @@ export function Fretboard(p: FretboardProps) {
   const [, bump] = useState(0)
   const dragSeen = useRef(new Map<number, Set<string>>())
 
-  // fill: 부모 크기를 따라간다
+  // 부모 크기: fill 은 레이아웃(1단위 = 1px), 비 fill 은 px 고정 굵기(줄·프렛)를 위한 배율만
   useEffect(() => {
-    if (!p.fill || !ref.current) { setBox(undefined); return }
-    const el = ref.current
+    if (!ref.current) return
     const ro = new ResizeObserver(([e]) => setBox({ w: e.contentRect.width, h: e.contentRect.height }))
-    ro.observe(el)
+    ro.observe(ref.current)
     return () => ro.disconnect()
-  }, [p.fill])
+  }, [])
 
   const L = layout(n, lo, hi, p.fill ? box : undefined)
-  const half = L.mark / 2
+  // 화면 px → viewBox 단위. 첫 렌더(관측 전)는 1
+  const scale = (!p.fill && box && Math.min(box.w / L.w, box.h / L.h)) || 1
+  const u = (px: number) => px / scale
 
   const fire = (key: string) => {
     const [s, f] = key.split(':').map(Number)
@@ -78,7 +86,7 @@ export function Fretboard(p: FretboardProps) {
   }
   const onUp = (e: PointerEvent) => { dragSeen.current.delete(e.pointerId) }
 
-  // 마크 + 마크 없는 자리의 state(라벨 없는 마커)
+  // 마크(원) + 마크 없는 자리의 state(라벨 없는 마커)
   const marked = new Set<string>()
   const drawn = new Set<string>()
   const markNodes: preact.JSX.Element[] = []
@@ -86,11 +94,11 @@ export function Fretboard(p: FretboardProps) {
     if (f < lo || f > hi || s < 0 || s >= n) return
     const key = `${s}:${f}`
     drawn.add(key)
-    const cx = L.x(f) + L.cw / 2, cy = L.y(s)
+    const cx = L.cx(f), cy = L.y(s), d = L.markAt(f)
     const cls = `fb-mark${m?.root ? ' root' : ''}${st ? ` st-${st}` : ''}${pressed.current.has(key) ? ' pressed' : ''}`
-    markNodes.push(<rect key={`m${key}`} class={cls} x={cx - half} y={cy - half} width={L.mark} height={L.mark} rx={2} {...{ [NS]: 'non-scaling-stroke' }} />)
+    markNodes.push(<circle key={`m${key}`} class={cls} cx={cx} cy={cy} r={d / 2} {...{ [NS]: 'non-scaling-stroke' }} />)
     const label = m && p.labelMode !== 'none' ? labelOf(m, p.labelMode, p.accidental) : ''
-    if (label) markNodes.push(<text key={`t${key}`} class={cls.replace('fb-mark', 'fb-label')} x={cx} y={cy} dy=".36em" font-size={L.font}>{label}</text>)
+    if (label) markNodes.push(<text key={`t${key}`} class={cls.replace('fb-mark', 'fb-label')} x={cx} y={cy} dy=".36em" font-size={d * 0.6}>{label}</text>)
   }
   for (const m of p.marks) { marked.add(posKey(m)); pushMark(m.string, m.fret, m, states[posKey(m)]) }
   for (const k in states) {
@@ -99,16 +107,29 @@ export function Fretboard(p: FretboardProps) {
     pushMark(s, f, undefined, states[k])
   }
 
+  // 지판: 와이어 a(왼쪽 끝) ~ hi. 창이 너트에서 시작하지 않으면 왼쪽으로도 지판이 조금 더 이어진다
+  const a = Math.max(lo, 1) - 1
+  const hasBoard = hi > a
+  const boardH = L.bottom - L.top
+  const wireW = u(wirePx(L.cw * scale)), nutW = wireW * 2.5
+  const over = Math.min(L.padX, wireW)
+  const left = a > 0 ? L.boardX - over : L.boardX, right = L.boardX + L.boardW + over
+  const edge = L.sg * 0.07
+
   const cells: preact.JSX.Element[] = []
   const nums: preact.JSX.Element[] = []
   const wires: preact.JSX.Element[] = []
   const dots: preact.JSX.Element[] = []
-  const top = L.y(n - 1) - L.sg * 0.45, bottom = L.y(0) + L.sg * 0.45
-  if (lo > 0) wires.push(<line key="w0" class="fb-fret" x1={L.x(lo)} y1={top} x2={L.x(lo)} y2={bottom} {...{ [NS]: 'non-scaling-stroke' }} />)
+  for (let f = a; hasBoard && f <= hi; f++) {
+    const x = L.wireX(f)
+    if (f === 0) wires.push(<rect key="nut" class="fb-nut" x={x - nutW} y={L.top} width={nutW} height={boardH} rx={u(1.5)} {...{ [NS]: 'non-scaling-stroke' }} />)
+    else wires.push(
+      <rect key={`ws${f}`} class="fb-shadow" x={x + wireW / 2} y={L.top} width={u(1.5)} height={boardH} />,
+      <rect key={`w${f}`} class="fb-fret" fill="url(#fb-g-fret)" x={x - wireW / 2} y={L.top} width={wireW} height={boardH} />,
+    )
+  }
   for (let f = lo; f <= hi; f++) {
-    const x = L.x(f), xr = x + L.cw, cx = x + L.cw / 2
-    if (f === 0) wires.push(<line key="nut" class="fb-nut" x1={xr} y1={top} x2={xr} y2={bottom} {...{ [NS]: 'non-scaling-stroke' }} />)
-    else wires.push(<line key={`w${f}`} class="fb-fret" x1={xr} y1={top} x2={xr} y2={bottom} {...{ [NS]: 'non-scaling-stroke' }} />)
+    const x = L.x(f), cx = L.cx(f)
     if (INLAY.has(f)) {
       // 2점은 줄 사이에: 줄 수가 짝수면 ±1칸, 홀수면 ±½칸
       const off = n % 2 ? L.sg / 2 : L.sg
@@ -119,22 +140,37 @@ export function Fretboard(p: FretboardProps) {
     for (let s = 0; s < n; s++) {
       const key = `${s}:${f}`
       const press = !drawn.has(key) && pressed.current.has(key) // 마크 있는 자리는 마크가 반응한다
-      cells.push(<rect key={`c${key}`} class={`fb-cell${press ? ' pressed' : ''}`} data-pos={key} x={x} y={L.y(s) - L.sg / 2} width={L.cw} height={L.sg} />)
+      cells.push(<rect key={`c${key}`} class={`fb-cell${press ? ' pressed' : ''}`} data-pos={key} x={x} y={L.y(s) - L.sg / 2} width={L.cwAt(f)} height={L.sg} />)
     }
   }
-  const strings = p.tuning.strings.map((_, s) => (
-    <line key={`s${s}`} class="fb-string" x1={L.x(lo)} y1={L.y(s)} x2={L.x(hi) + L.cw} y2={L.y(s)} stroke-width={stringWidth(s, n)} {...{ [NS]: 'non-scaling-stroke' }} />
-  ))
-  // U1 줄 이름 열: 개방 셀(lo=0) 또는 첫 프렛선(lo>0) 왼편
-  const nameX = L.x(lo) - 4
+  // 줄: 지판에 떨군 그림자 → 몸통(위가 밝은 그라디언트) → 와운드는 권선 무늬(굵을 때만)
+  const sx = lo === 0 ? L.x(0) : left
+  const strings = p.tuning.strings.flatMap((_, s) => {
+    const px = stringPx(s, n, p.fill), th = u(px), y = L.y(s), wound = isWound(s, n)
+    return [
+      hasBoard && <rect key={`ss${s}`} class="fb-shadow" x={left} y={y + th / 2 + u(1)} width={right - left} height={Math.max(u(1), th * 0.6)} />,
+      <rect key={`s${s}`} class={`fb-string${wound ? ' wound' : ''}`} fill={`url(#fb-g-${wound ? 'wound' : 'plain'})`} x={sx} y={y - th / 2} width={right - sx} height={th} />,
+      wound && px >= 3 && <line key={`sw${s}`} class="fb-winding" x1={sx} y1={y} x2={right} y2={y} stroke-width={th} stroke-dasharray={`${u(0.8)} ${u(1.4)}`} />,
+    ]
+  })
+  // U1 줄 이름 열: 개방 셀(lo=0) 또는 지판 왼쪽 끝(lo>0) 왼편
   const names = p.tuning.strings.map((open, s) => (
-    <text key={`sn${s}`} class="fb-string-name" x={nameX} y={L.y(s)} dy=".36em" font-size={L.numFont}>{noteName(midiToPc(open), p.accidental)}</text>
+    <text key={`sn${s}`} class="fb-string-name" x={sx - 4} y={L.y(s)} dy=".36em" font-size={L.numFont}>{noteName(midiToPc(open), p.accidental)}</text>
   ))
 
   return (
     <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={p.view} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': p.view === 'player' ? p.tilt ?? 0.6 : 0 }}>
       <div class="fb-stage">
         <svg viewBox={`0 0 ${L.w} ${L.h}`} role="img" aria-label={`프렛보드 ${p.tuning.name} ${lo}–${hi}프렛`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+          <defs>
+            {grad('fb-g-board', true, [[0, 'wood'], [0.5, 'wood-hi'], [1, 'wood']])}
+            {grad('fb-g-fret', false, [[0, 'fret-lo'], [0.3, 'fret-hi'], [0.65, 'fret'], [1, 'fret-lo']])}
+            {grad('fb-g-plain', true, [[0, 'str-hi'], [0.45, 'str-plain'], [1, 'str-lo']])}
+            {grad('fb-g-wound', true, [[0, 'str-wound'], [0.3, 'str-hi'], [0.6, 'str-wound'], [1, 'str-lo']])}
+          </defs>
+          {hasBoard && <rect class="fb-board" fill="url(#fb-g-board)" x={left} y={L.top} width={right - left} height={boardH} />}
+          {hasBoard && <rect class="fb-edge" x={left} y={L.top} width={right - left} height={edge} />}
+          {hasBoard && <rect class="fb-edge" x={left} y={L.bottom - edge} width={right - left} height={edge} />}
           {dots}{wires}{strings}{names}{nums}{markNodes}{cells}
         </svg>
       </div>

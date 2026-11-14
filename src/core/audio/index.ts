@@ -2,13 +2,13 @@
 // 설계: docs/plans/agent_C_audio.md. 노트(KS 버퍼 소스 → gain) → 톤 버스(공유 EQ/디스토션) → 마스터(리미터 → 볼륨) → destination.
 import { getSettings } from '../settings'
 import type { Midi, Tone } from '../types'
-import { hardClipCurve, midiToHz, pluckBuffer, pluckPeriod, softClipCurve, volumeToGain } from './synth'
+import { hardClipCurve, midiToHz, pluckBuffer, pluckPeriod, volumeToGain } from './synth'
 
 export * from './synth'
 
 const BUF_SEC = 2.5
 /** 톤별 노트 감쇠 시간상수(초) — 길수록 서스테인 */
-const DECAY: Record<Tone, number> = { acoustic: 0.45, rock: 0.8, metal: 1.2 }
+const DECAY: Record<Tone, number> = { clean: 0.6, distortion: 1.2 }
 
 let ctx: AudioContext | undefined
 let master: GainNode
@@ -30,9 +30,8 @@ function setup(c: AudioContext): void {
   const limiter = new DynamicsCompressorNode(c, { threshold: -6, knee: 4, ratio: 12, attack: 0.002, release: 0.12 })
   limiter.connect(master).connect(c.destination)
   buses = {
-    acoustic: chain([filter(c, 'peaking', 170, 1.2, 6), filter(c, 'lowpass', 5000)], limiter),
-    rock: chain([gain(c, 8), shaper(c, softClipCurve()), filter(c, 'lowpass', 4500), gain(c, 0.35)], limiter),
-    metal: chain([
+    clean: chain([filter(c, 'peaking', 170, 1.2, 6), filter(c, 'lowpass', 5000)], limiter),
+    distortion: chain([
       filter(c, 'highpass', 120), gain(c, 40), shaper(c, hardClipCurve()),
       filter(c, 'peaking', 800, 0.8, -12), filter(c, 'lowpass', 6000), gain(c, 0.3),
     ], limiter),
@@ -88,8 +87,8 @@ export function playNote(midi: Midi, opts?: { velocity?: number }): void {
   })
   const v = Math.max(0, Math.min(1, opts?.velocity ?? 0.8))
   const g = gain(c, 0.2 + 0.8 * v)
-  g.gain.setTargetAtTime(0, t + 0.03, DECAY[tone] ?? DECAY.rock)
-  src.connect(g).connect(buses[tone] ?? buses.rock)
+  g.gain.setTargetAtTime(0, t + 0.03, DECAY[tone] ?? DECAY.clean)
+  src.connect(g).connect(buses[tone] ?? buses.clean)
   src.onended = () => { src.disconnect(); g.disconnect(); if (active.get(midi)?.src === src) active.delete(midi) }
   src.start(t)
   active.set(midi, { src, g })
