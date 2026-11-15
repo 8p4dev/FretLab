@@ -1,6 +1,6 @@
-/* 그립 모드 — index.css 토큰만. E 소유. 가로 전체화면: 위쪽 얇은 오버레이(접힘) + 프렛보드가 나머지를 가득 채움 */
+/* 그립 모드 — index.css 토큰만. E 소유. 가로 전체화면: 프렛보드가 위를 가득 채우고 아래쪽에 얇은 오버레이(접힘) — 기타처럼 잡은 손이 위를 가리지 않게 */
 .grip {
-  position: fixed; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; box-sizing: border-box;
+  position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; box-sizing: border-box;
   background: var(--bg);
   padding: var(--safe-t) env(safe-area-inset-right, 0px) var(--safe-b) env(safe-area-inset-left, 0px);
 }
@@ -20,11 +20,11 @@
 .grip-bar {
   min-height: 0; overflow: hidden; box-sizing: border-box;
   display: flex; align-items: center; gap: .35rem; padding: .2rem .5rem;
-  background: var(--surface); border-bottom: 1px solid var(--border);
+  background: var(--surface); border-top: 1px solid var(--border);
   transition: padding var(--t-med) var(--ease-out), border-width var(--t-med) var(--ease-out);
 }
 /* 패딩·선까지 0 이어야 높이가 정말 0 */
-.grip-bar-wrap[data-hidden] .grip-bar { padding-block: 0; border-bottom-width: 0; }
+.grip-bar-wrap[data-hidden] .grip-bar { padding-block: 0; border-top-width: 0; }
 .grip-bar .scale-bar { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grip-bar > .seg { flex: none; }
 .grip-pos { display: inline-flex; align-items: center; gap: .1rem; flex: none; font-size: var(--fs-sm); font-weight: 600; }
@@ -32,9 +32,9 @@
 .grip-spacer { flex: 1; }
 /* 세로: 스케일 이름·음소거·나가기만 남긴다(프렛보드가 없으니 포지션·모드는 의미 없음). display 를 주는 규칙들 뒤에 둬야 이긴다 */
 @media (orientation: portrait) { .grip-pos, .grip-bar > .seg, .grip-progress { display: none; } }
-/* 접힌 동안 위쪽 가장자리 탭 표적(24px). ::after 가 상단 중앙 28×4 pill 핸들 */
-.grip-edge { position: absolute; top: 0; left: 0; right: 0; height: 24px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; z-index: 2; }
-.grip-edge::after { content: ''; position: absolute; top: 4px; left: 50%; width: 28px; height: 4px; margin-left: -14px; border-radius: 2px; background: var(--border-strong); }
+/* 접힌 동안 아래쪽 가장자리 탭 표적(24px). ::after 가 하단 중앙 28×4 pill 핸들 */
+.grip-edge { position: absolute; bottom: 0; left: 0; right: 0; height: 24px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; z-index: 2; }
+.grip-edge::after { content: ''; position: absolute; bottom: 4px; left: 50%; width: 28px; height: 4px; margin-left: -14px; border-radius: 2px; background: var(--border-strong); }
 .grip-edge:active:not(:disabled) { transform: none; background: var(--border); }
 
 /* 프렛보드 영역: 양끝 ◂ ▸ + 가득 채운 보드. 스와이프를 위해 브라우저 제스처 끔 */

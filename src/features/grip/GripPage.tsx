@@ -198,6 +198,18 @@ function Grip({ portrait, s }: { portrait: boolean; s: Settings }) {
 
   return (
     <div className="grip" onPointerDownCapture={wake}>
+      {!barShown && <button type="button" className="grip-edge" aria-label={t(S.showMenu)} onClick={wake} />}
+
+      {portrait ? (
+        <div className="grip-rotate muted"><Icon d={I.smartphone} size={64} /><span>{t(S.rotate)}</span></div>
+      ) : (
+        <div className="grip-board" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+          <button type="button" className="ghost grip-arrow" aria-label={t(S.lower)} disabled={lo <= 0} onClick={() => shift(-1)}><Icon d={I.chevronLeft} size={20} /></button>
+          <Fretboard fill tuning={tuning} frets={[lo, hi]} marks={pos.marks} labelMode={s.labelMode} accidental={s.accidental}
+            states={mode === 'follow' ? follow.states : undefined} onTap={onTap} />
+          <button type="button" className="ghost grip-arrow" aria-label={t(S.higher)} disabled={lo >= maxLo} onClick={() => shift(1)}><Icon d={I.chevronRight} size={20} /></button>
+        </div>
+      )}
       <div className="grip-bar-wrap" data-hidden={barShown ? undefined : ''}>
         <div className="grip-bar">
           <ScaleBar compact />
@@ -220,18 +232,6 @@ function Grip({ portrait, s }: { portrait: boolean; s: Settings }) {
           <button type="button" className="ghost" aria-label={t(S.exit)} onClick={exit}><Icon d={I.x} size={20} /></button>
         </div>
       </div>
-      {!barShown && <button type="button" className="grip-edge" aria-label={t(S.showMenu)} onClick={wake} />}
-
-      {portrait ? (
-        <div className="grip-rotate muted"><Icon d={I.smartphone} size={64} /><span>{t(S.rotate)}</span></div>
-      ) : (
-        <div className="grip-board" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-          <button type="button" className="ghost grip-arrow" aria-label={t(S.lower)} disabled={lo <= 0} onClick={() => shift(-1)}><Icon d={I.chevronLeft} size={20} /></button>
-          <Fretboard fill tuning={tuning} frets={[lo, hi]} marks={pos.marks} labelMode={s.labelMode} accidental={s.accidental}
-            states={mode === 'follow' ? follow.states : undefined} onTap={onTap} />
-          <button type="button" className="ghost grip-arrow" aria-label={t(S.higher)} disabled={lo >= maxLo} onClick={() => shift(1)}><Icon d={I.chevronRight} size={20} /></button>
-        </div>
-      )}
     </div>
   )
 }
