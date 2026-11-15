@@ -11,6 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'inline',
+      // inline 등록이면 플러그인이 아래 둘을 자동으로 안 넣는다 → 새 SW 가 waiting 에 갇혀 배포가 반영 안 됨
+      workbox: { skipWaiting: true, clientsClaim: true },
       includeManifestIcons: false,
       manifest: {
         name: 'FretLab', short_name: 'FretLab', lang: 'en', display: 'standalone', orientation: 'any',
