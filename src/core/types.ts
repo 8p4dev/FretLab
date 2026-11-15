@@ -87,4 +87,8 @@ export type Settings = {
   /** 연주자 시점 기울기 0..1. 0 = 평면(6차: view 옵션 삭제) */
   tilt: number
   lang: Lang
+  /** 음 길이 0..1 (0.5 = 톤 기본 감쇠, 양끝은 1/4배·4배) */
+  sustain: number
+  /** 새 음을 치면 울리던 음을 끊는다(단음) */
+  mono: boolean
 }

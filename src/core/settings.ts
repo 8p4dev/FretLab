@@ -5,6 +5,7 @@ import type { Settings } from './types'
 export const DEFAULTS: Settings = {
   root: 9, scaleId: 'minor-pentatonic', tuningId: 'standard', accidental: 'sharp', labelMode: 'note',
   tone: 'clean', volume: .8, muted: false, system: 'full', position: 0, fretCount: 22, tilt: 0, lang: 'en',
+  sustain: .5, mono: false,
 }
 const KEY = 'fretlab:settings'
 const subs = new Set<() => void>()

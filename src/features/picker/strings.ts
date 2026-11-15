@@ -38,6 +38,8 @@ export const S = {
   distortionTip: { en: 'High gain', ko: '하이게인', ja: 'ハイゲイン' },
   volume: { en: 'Volume', ko: '볼륨', ja: '音量' },
   mute: { en: 'Mute', ko: '음소거', ja: 'ミュート' },
+  noteLength: { en: 'Note length', ko: '음 길이', ja: '音の長さ' },
+  mono: { en: 'Cut previous note', ko: '다음 음을 치면 앞 음 끊기', ja: '次の音で前の音を止める' },
   view: { en: 'View', ko: '보기', ja: '表示' },
   tilt: { en: 'Tilt', ko: '기울기', ja: '傾き' },
   flat: { en: 'Flat', ko: '평면', ja: '平面' },

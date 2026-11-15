@@ -218,6 +218,13 @@ export function OptionsButton() {
           <label className="picker-row picker-check">
             <input type="checkbox" checked={s.muted} onChange={(e) => patchSettings({ muted: e.currentTarget.checked })} />{t(S.mute)}
           </label>
+          <label className="picker-row">{t(S.noteLength)}
+            <input type="range" min={0} max={1} step={0.05} value={s.sustain} onInput={(e) => patchSettings({ sustain: Number(e.currentTarget.value) })} onChange={() => playNote(PREVIEW_MIDI)} />
+            <output className="tnum muted">{pct(s.sustain)}</output>
+          </label>
+          <label className="picker-row picker-check">
+            <input type="checkbox" checked={s.mono} onChange={(e) => patchSettings({ mono: e.currentTarget.checked })} />{t(S.mono)}
+          </label>
 
           <h3 className="muted">{t(S.view)}</h3>
           <label className="picker-row">{t(S.tilt)}

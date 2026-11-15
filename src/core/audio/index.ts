@@ -84,19 +84,19 @@ export function playNote(midi: Midi, opts?: { velocity?: number }): void {
   unlockAudio()
   const c = ctx
   if (!c) return
-  const { tone, volume, muted } = getSettings()
+  const { tone, volume, muted, sustain, mono } = getSettings()
   const t = c.currentTime
   master.gain.setValueAtTime(muted ? 0 : volumeToGain(volume), t)
   if (muted) return
 
-  // 같은 음 재타격: 이전 음은 15 ms 페이드아웃
-  const prev = active.get(midi)
-  if (prev) {
+  // 같은 음 재타격(단음 모드면 울리던 음 전부): 15 ms 페이드아웃
+  for (const [m, prev] of active) {
+    if (!mono && m !== midi) continue
     prev.g.gain.cancelScheduledValues(t)
     prev.g.gain.setValueAtTime(prev.g.gain.value, t)
     prev.g.gain.linearRampToValueAtTime(0, t + 0.015)
     prev.src.stop(t + 0.02)
-    active.delete(midi)
+    active.delete(m)
   }
 
   // 소스는 하나만: 톤 샘플이 로드됐으면 샘플, 아니면 KS 폴백
@@ -114,12 +114,14 @@ export function playNote(midi: Midi, opts?: { velocity?: number }): void {
   })
   const v = Math.max(0, Math.min(1, opts?.velocity ?? 0.8))
   const g = gain(c, 0.2 + 0.8 * v)
-  g.gain.setTargetAtTime(0, t + 0.03, DECAY[tone] ?? DECAY.clean)
-  g.gain.setTargetAtTime(0, t + BUF_SEC - 0.2, 0.04) // 루프 샘플은 끝이 없다 — 끊기 전 빠른 감쇠(클릭 방지)
+  const decay = (DECAY[tone] ?? DECAY.clean) * 4 ** (2 * sustain - 1) // 슬라이더 0..1 → 1/4배..4배
+  const len = z ? Math.min(Math.max(BUF_SEC, decay * 4), 8) : BUF_SEC // KS 버퍼는 2.5초뿐, 루프 샘플은 감쇠만큼 더 울린다
+  g.gain.setTargetAtTime(0, t + 0.03, decay)
+  g.gain.setTargetAtTime(0, t + len - 0.2, 0.04) // 루프 샘플은 끝이 없다 — 끊기 전 빠른 감쇠(클릭 방지)
   src.connect(g).connect(buses[tone] ?? buses.clean)
   src.onended = () => { src.disconnect(); g.disconnect(); if (active.get(midi)?.src === src) active.delete(midi) }
   src.start(t)
-  src.stop(t + BUF_SEC)
+  src.stop(t + len)
   active.set(midi, { src, g })
 }
 
