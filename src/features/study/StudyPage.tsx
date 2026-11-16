@@ -171,7 +171,7 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
         <span className="study-spacer" />
         <label className="study-tilt">
           <span className="muted">{t(S.tilt)}</span>
-          <input type="range" min={0} max={1} step={0.05} value={s.tilt} aria-label={t(S.tilt)} onInput={(e) => setTiltLive(Number(e.currentTarget.value))} onChange={(e) => patchSettings({ tilt: Number(e.currentTarget.value) })} />
+          <input type="range" min={0} max={1} step={0.01} value={s.tilt} aria-label={t(S.tilt)} onInput={(e) => setTiltLive(Number(e.currentTarget.value))} onChange={(e) => patchSettings({ tilt: Number(e.currentTarget.value) })} />
         </label>
         <OptionsButton />
         </div>

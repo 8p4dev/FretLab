@@ -230,7 +230,7 @@ export function OptionsButton() {
 
           <h3 className="muted">{t(S.view)}</h3>
           <label className="picker-row">{t(S.tilt)}
-            <input type="range" min={0} max={1} step={0.05} value={tilt} onInput={(e) => { const v = Number(e.currentTarget.value); setTiltLive(v); setDrag(v) }} onChange={(e) => { patchSettings({ tilt: Number(e.currentTarget.value) }); setDrag(null) }} />
+            <input type="range" min={0} max={1} step={0.01} value={tilt} onInput={(e) => { const v = Number(e.currentTarget.value); setTiltLive(v); setDrag(v) }} onChange={(e) => { patchSettings({ tilt: Number(e.currentTarget.value) }); setDrag(null) }} />
             <output className="tnum muted">{tilt ? pct(tilt) : t(S.flat)}</output>
           </label>
           <label className="picker-row">{t(S.language)}

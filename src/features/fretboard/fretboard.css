@@ -3,7 +3,7 @@
    --fb-u(화면 1px 의 viewBox 단위)·--fb-hn(넥 옆면 높이 px)·--fb-bh(지판 높이 px)·--fb-ar(지판 높이 / 전체 폭)은 Fretboard.tsx 가 넣는다 */
 .fretboard { position: relative; width: 100%; --tilt: 0; --fb-a: calc(var(--tilt) * 66deg); --fb-drop: calc(var(--tilt) * var(--fb-u) * 1.5px); --fb-cast: calc(1 + var(--tilt) * 1.5); }
 .fretboard.fill { height: 100%; }
-.fretboard .fb-stage { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform var(--t-slow) var(--ease-out); }
+.fretboard .fb-stage { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; } /* 전환 없음: 슬라이더를 따라 1:1 로 움직여야 울렁거리지 않는다 */
 /* 레이어: .fb-base 가 크기를 정하고 나머지는 그 위에 겹친다. DOM 순서 = 높이 순서, 맨 위(.fb-z2)만 포인터를 받는다 */
 .fretboard svg { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .fretboard .fb-base { position: static; height: auto; max-height: 45vh; /* QA #3: 좁은 포지션 창이 1440×900 에서 행동 바를 밀어내지 않게 (60vh → 45vh) */ }
@@ -97,4 +97,4 @@
   --fb-k: calc(var(--fb-t) * (1 + var(--fb-d)) / cos(var(--fb-a)));
 }
 .fretboard[data-view='player'] .fb-stage { transform: translateY(calc(sin(var(--fb-a)) * var(--fb-hn) * -1px)) perspective(calc(var(--fb-k) * var(--fb-bh) / var(--fb-e) * 1px)) rotateX(var(--fb-a)) scaleY(var(--fb-k)); }
-.fretboard[data-view='player'] :is(.fb-mark, .fb-ring, .fb-label, .fb-string-name) { transform-box: fill-box; transform-origin: center; transform: scaleY(calc((1.03 + var(--fb-d) * .1) * (1 + var(--fb-d) * var(--fb-y, .5)) / (var(--fb-t) * (1 + var(--fb-d))))); transition: transform var(--t-slow) var(--ease-out); } /* 줄마다(--fb-y: 0 가까운 쪽 ~ 1 먼 쪽) 원근 세로 늘림 t(1+d)/(1+d·y) 를 되돌려 마크가 원으로(1.03 + .1d 는 실측 보정, 결과 .98~1.02) */
+.fretboard[data-view='player'] :is(.fb-mark, .fb-ring, .fb-label, .fb-string-name) { transform-box: fill-box; transform-origin: center; transform: scaleY(calc(1.02 * (1 + var(--fb-d) * var(--fb-y, .5)) / (var(--fb-t) * (1 + var(--fb-d))))); } /* 줄마다(--fb-y: 0 가까운 쪽 ~ 1 먼 쪽) 원근 세로 늘림 t(1+d)/(1+d·y) 를 되돌려 마크가 원으로(1.02 는 화면 픽셀 실측 보정, 결과 .99~1.04). 전환 없음(스테이지와 같은 프레임에 맞춰야 함) */
