@@ -1,5 +1,5 @@
 // 스케일·옵션 선택 UI — 공유 계약 orchestration_fretlab.md §3.8 (에이전트 F 소유).
-// ScaleBar: 현재 선택 요약 버튼("A Minor Pentatonic · Standard · CAGED 2/5") → 시트.
+// ScaleBar: 현재 선택 요약 버튼("A Minor Pentatonic · Standard · CAGED 2/5") → 시트. 좁은 폭(≤ 760px)은 두 줄(이름 / 튜닝 · 포지션), compact 는 늘 한 줄.
 //   6차(L1): 고정 헤더(요약 + 닫기) · 모바일은 탭 Root/Scale/Position, PC 는 3열 · 스케일 구역 = 검색 + 그룹 칩 + 현재 줄 + 목록(여기만 스크롤) · 하단 Done.
 // OptionsButton: 톱니 → 시트(튜닝 · 표기 · 프렛 수 · 사운드 · 기울기(0 = 평면) · 언어 · 기본값으로).
 // 상태는 전부 useSettings/patchSettings(선택 즉시 저장). 문구는 strings.ts + useT(), 스케일·그룹·튜닝 이름은 localName.
@@ -60,7 +60,7 @@ export function ScaleBar({ compact }: { compact?: boolean }) {
   const order = `${position + 1}/${count}`
   const posText = s.system === 'full' ? t(S.full) : compact ? order : `${s.system.toUpperCase()} ${order}`
   const head = `${noteName(s.root, s.accidental)} ${localName(scale, lang)}`
-  const summary = compact ? `${head} · ${posText}` : `${head} · ${localName(tuning, lang).replace(/\s*\(.*\)\s*$/, '')} · ${posText}`
+  const sub = compact ? posText : `${localName(tuning, lang).replace(/\s*\(.*\)\s*$/, '')} · ${posText}`
   const formula = `${scale.intervals.map(intervalName).join(' ')} · ${scalePcs(s.root, scale).map((pc) => noteName(pc, s.accidental)).join(' ')}`
   // SCALE_GROUPS 는 A6 뒤 name(영문)을 가진다. 혹시 비면 GROUP_EN
   const groupName = (g: (typeof SCALE_GROUPS)[number]) => localName({ ...g, name: g.name || GROUP_EN[g.id] }, lang)
@@ -90,7 +90,7 @@ export function ScaleBar({ compact }: { compact?: boolean }) {
         type="button" className="scale-bar" aria-label={t(S.scale)} aria-haspopup="dialog" aria-expanded={open}
         data-compact={compact || undefined} onClick={() => setOpen(true)}
       >
-        <span className="scale-bar-text">{summary}</span>
+        <span className="scale-bar-text"><span className="scale-bar-name">{head}</span><span className="scale-bar-sep">{' · '}</span><span className="scale-bar-sub">{sub}</span></span>
         <Icon d={I.chevronDown} size={16} />
       </button>
       <Sheet open={open} onClose={close} label={t(S.scale)}>
@@ -119,7 +119,7 @@ export function ScaleBar({ compact }: { compact?: boolean }) {
             <section className="picker-col picker-col-scale" data-on={tab === 'scale' || undefined}>
               <h3 className="muted">{t(S.scale)}</h3>
               <input type="search" aria-label={t(S.search)} placeholder={t(S.search)} value={q} onInput={(e) => setQ(e.currentTarget.value)} />
-              <div className="picker-chips" role="group" aria-label={t(S.scaleGroup)}>
+              <div className="picker-chips" role="group" aria-label={t(S.scaleGroup)} onScroll={(e) => { const el = e.currentTarget; el.toggleAttribute('data-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 8) }}>
                 <button type="button" aria-pressed={!group} onClick={() => setGroup('')}>{t(S.all)}</button>
                 {SCALE_GROUPS.map((g) => (
                   <button key={g.id} type="button" aria-pressed={group === g.id} onClick={() => setGroup(g.id)}>{groupName(g)}</button>
@@ -178,6 +178,8 @@ export function OptionsButton() {
   const s = useSettings()
   const { t, lang } = useT()
   const [open, setOpen] = useState(false)
+  const [drag, setDrag] = useState<number | null>(null) // 기울기 드래그 중 값(저장 전) — output 즉시 갱신
+  const tilt = drag ?? s.tilt
   return (
     <>
       <button type="button" className="ghost" aria-label={t(S.options)} data-tip={t(S.options)} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
@@ -228,8 +230,8 @@ export function OptionsButton() {
 
           <h3 className="muted">{t(S.view)}</h3>
           <label className="picker-row">{t(S.tilt)}
-            <input type="range" min={0} max={1} step={0.05} value={s.tilt} onInput={(e) => setTiltLive(Number(e.currentTarget.value))} onChange={(e) => patchSettings({ tilt: Number(e.currentTarget.value) })} />
-            <output className="tnum muted">{s.tilt ? pct(s.tilt) : t(S.flat)}</output>
+            <input type="range" min={0} max={1} step={0.05} value={tilt} onInput={(e) => { const v = Number(e.currentTarget.value); setTiltLive(v); setDrag(v) }} onChange={(e) => { patchSettings({ tilt: Number(e.currentTarget.value) }); setDrag(null) }} />
+            <output className="tnum muted">{tilt ? pct(tilt) : t(S.flat)}</output>
           </label>
           <label className="picker-row">{t(S.language)}
             <select value={s.lang} onChange={(e) => patchSettings({ lang: e.currentTarget.value as Lang })}>
