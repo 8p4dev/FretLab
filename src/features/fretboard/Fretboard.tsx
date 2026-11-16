@@ -25,6 +25,8 @@ export type FretboardProps = {
   tilt?: number
   /** true 면 부모 크기를 가득 채운다(그립). false 면 폭 100%·높이 비율 고정 */
   fill?: boolean
+  /** 비 fill 전용. 줄 간격 배수(1 = 기본). 폰 세로에서 1.45 (7차 C2). fill 에서는 무시 */
+  stringGap?: number
   /** 프렛 자리(마크 유무 무관) 탭. 멀티터치는 pointer 이벤트마다 한 번씩 */
   onTap?: (pos: FretPos) => void
   /** true 면 pointerdown 뒤 포인터가 처음 들어가는 셀마다 onTap(쓸어 찍기, 채우기). 계약 §3.5 (2차 plan U4) */
