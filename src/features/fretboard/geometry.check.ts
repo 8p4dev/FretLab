@@ -49,6 +49,15 @@ for (const n of [6, 7]) {
   }
 }
 
+// 3b. 줄 간격 계수(7차 C2): 비 fill 은 sg·마크·인레이가 그 배수, 칸 폭은 그대로. fill 은 무시
+{
+  const A = layout(6, 0, 7), B = layout(6, 0, 7, undefined, 1.45)
+  assert(near(B.sg, A.sg * 1.45) && near(B.mark, A.mark * 1.45) && near(B.dot, A.dot * 1.45) && near(B.bottom, A.bottom * 1.45), 'stringGap 1.45: sg·mark 배수')
+  assert(near(B.cw, A.cw) && near(B.cwAt(3), A.cwAt(3)), 'stringGap 이 칸 폭을 바꿈')
+  const F = layout(6, 1, 5, { w: 844, h: 390 }), G = layout(6, 1, 5, { w: 844, h: 390 }, 1.45)
+  assert(near(F.sg, G.sg) && near(F.h, G.h), 'fill 에서 stringGap 이 무시되지 않음')
+}
+
 // 4. 그립(844×390 fill): 4~5칸 창의 모든 셀 ≥ 120×56
 for (const [lo, hi] of [[1, 5], [5, 9], [5, 8], [12, 16], [20, 24]]) {
   const L = layout(6, lo, hi, { w: 844, h: 390 })

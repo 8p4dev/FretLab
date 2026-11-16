@@ -1,6 +1,6 @@
 /* 프렛보드 — B 소유. 색은 전부 여기(SVG 는 class 만 단다). 실물 hex 는 --fb-* 정의에만, 그 밖은 index.css 토큰 */
 /* 5차 3D 변수 — 전부 --tilt 파생(flat = 0): 기울기 각, 줄 그림자 오프셋(viewBox 단위), 프렛 그림자 폭 배율.
-   --fb-u(화면 1px 의 viewBox 단위)·--fb-hn(넥 옆면 높이 px)은 Fretboard.tsx 가 넣는다 */
+   --fb-u(화면 1px 의 viewBox 단위)·--fb-hn(넥 옆면 높이 px)·--fb-bh(지판 높이 px)·--fb-ar(지판 높이 / 전체 폭)은 Fretboard.tsx 가 넣는다 */
 .fretboard { position: relative; width: 100%; --tilt: 0; --fb-a: calc(var(--tilt) * 66deg); --fb-drop: calc(var(--tilt) * var(--fb-u) * 1.5px); --fb-cast: calc(1 + var(--tilt) * 1.5); }
 .fretboard.fill { height: 100%; }
 .fretboard .fb-stage { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform var(--t-slow) var(--ease-out); }
@@ -66,14 +66,17 @@
 .fb-mark.st-picked { fill: var(--text-2); stroke: var(--text-2); }
 .fb-label.st-picked { fill: var(--bg); }
 .fb-mark.st-dim, .fb-label.st-dim { opacity: .35; }
-.fb-mark.st-target { stroke: var(--text); stroke-width: 2; animation: fb-pulse calc(var(--t-slow) * 3) var(--ease-out) infinite alternate; }
+/* 표적(7차 C8): 굵은 테두리 + 바깥 --ok 링, 둘이 함께 살짝 부푼다 */
+.fb-mark.st-target { stroke: var(--text); stroke-width: 2.5; }
+.fb-ring { fill: none; stroke: var(--ok); stroke-width: 2.5; pointer-events: none; transform-box: fill-box; transform-origin: center; }
+.fb-mark.st-target, .fb-ring { animation: fb-pulse calc(var(--t-slow) * 2) var(--ease-out) infinite alternate; }
 /* reduced-motion 은 index.css 전역 규칙(iteration-count 1)으로 정적 */
-@keyframes fb-pulse { from { stroke-opacity: 1; } to { stroke-opacity: .35; } }
+@keyframes fb-pulse { from { scale: 1; } to { scale: 1.08; } }
 
 /* U2 눌림: 마크는 튀어오르고, 마크 없는 자리는 셀이 잠깐 어두워진다 */
 .fb-mark.pressed { animation: fb-press var(--t-fast) var(--ease-out); }
 .fb-cell.pressed { fill: color-mix(in srgb, var(--text) 10%, transparent); }
-@keyframes fb-press { from { scale: 1.15; } to { scale: 1; } } /* scale 속성: 연주자 시점의 transform 보정과 겹쳐도 유지 */
+@keyframes fb-press { from { scale: 1.15; } to { scale: 1; } }
 
 /* 탭 셀: 맨 위 투명 레이어 */
 .fb-cell { fill: transparent; pointer-events: all; transition: fill var(--t-fast); }
@@ -81,15 +84,17 @@
 .fretboard[data-tap] .fb-cell { cursor: pointer; }
 @media (hover: hover) { .fb-cell:hover { fill: color-mix(in srgb, var(--text) 6%, transparent); } }
 
-/* 연주자 시점(3차 R2 → 5차 P1): 앞으로만 눕힌다 — 지판 아래 가장자리가 축(transform-origin 은 Fretboard.tsx), 낮은 줄이 눈에 가깝게.
-   옆면이 축 아래로 hn × sinθ 만큼 드러나므로 스테이지를 그만큼 올려 번호(스테이지 밖, 눕지 않음) 위에 얹는다 */
-.fretboard[data-view='player'] .fb-stage { transform: translateY(calc(sin(var(--fb-a)) * var(--fb-hn) * -1px)) perspective(2000px) rotateX(var(--fb-a)); }
-/* 눌림 보정: 화면 종횡비 = cos(각) x 원근 축소(.92~1) → 1/cos 만큼 세로로 늘려 원형 마크가 원에 가깝게(줄 이름도).
-   66도에서는 줄 간격(화면)이 마크 지름의 절반 남짓이라, 기울수록 마크만 줄이고(--fb-m) 글자는 그대로 두어 이웃 줄 마크에 가리지 않게 한다 */
-.fretboard[data-view='player'] { --fb-m: calc(1 - var(--tilt) * .2); --fb-sy: calc((1 + var(--tilt) * .07) / cos(var(--fb-a))); }
-.fretboard[data-view='player'] .fb-mark, .fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-string-name {
-  transform-box: fill-box; transform-origin: center; transform: scale(var(--fb-m), calc(var(--fb-m) * var(--fb-sy)));
-  transition: transform var(--t-slow) var(--ease-out);
+/* 연주자 시점(3차 R2 → 5차 P1 → 7차 C1): 앞으로 눕히되 작아지지 않게 — 지판 아래 가장자리가 축(transform-origin 은 Fretboard.tsx).
+   rotateX 가 세로를 cos 배로 누르는 만큼 scaleY(k) 로 평면을 미리 늘린다. 옆면이 축 아래로 hn × sin 만큼 드러나므로 스테이지를 그만큼 올리고,
+   보드는 남은 높이(--fb-t)를 채운다 → 보드 + 옆면 = 평면 보드 높이(위로 넘치지 않고, 번호 띠를 가리지 않는다).
+   --fb-d = 먼 쪽 가장자리의 원근 축소량(tilt 1 에서 최대 5.5%). 넓은 보드는 좌우 끝 글자가 기울어 보이므로(전단 = d × 폭 / 2높이) 종횡비로 줄인다(--fb-e).
+   늘어난 평면 깊이 k × bh × sin 에서 그 축소가 나오는 거리가 perspective.
+   화면 줄 간격 = 평면 × t(1+d)/(1+d·y)^2 (y: 0 가까운 줄 ~ 1 먼 가장자리) ≥ .9, 마크 세로/가로 = t(1+d)/(1+d·y) ≈ .95~1 이라 보정(--fb-sy)은 4% 면 된다 */
+.fretboard[data-view='player'] {
+  --fb-e: min(.06, var(--fb-ar) * .18);
+  --fb-d: calc(sin(var(--fb-a)) * var(--fb-e));
+  --fb-t: calc(1 - sin(var(--fb-a)) * var(--fb-hn) / var(--fb-bh));
+  --fb-k: calc(var(--fb-t) * (1 + var(--fb-d)) / cos(var(--fb-a)));
 }
-.fretboard[data-view='player'] .fb-label, .fretboard[data-view='player'] .fb-string-name { --fb-m: 1; }
-.fretboard[data-view='player'] .fb-label { font-weight: 700; }
+.fretboard[data-view='player'] .fb-stage { transform: translateY(calc(sin(var(--fb-a)) * var(--fb-hn) * -1px)) perspective(calc(var(--fb-k) * var(--fb-bh) / var(--fb-e) * 1px)) rotateX(var(--fb-a)) scaleY(var(--fb-k)); }
+.fretboard[data-view='player'] :is(.fb-mark, .fb-ring, .fb-label, .fb-string-name) { transform-box: fill-box; transform-origin: center; transform: scaleY(calc(1 + var(--tilt) * .04)); transition: transform var(--t-slow) var(--ease-out); }

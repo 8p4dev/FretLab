@@ -48,11 +48,12 @@ export type Layout = {
 /**
  * n 줄, 프렛 [lo,hi]. fill 이면 (w,h) px 를 가득 채우도록 셀 크기를 역산한다.
  * 칸 폭은 실물 비율을 K 만큼 섞는다(wirePos). 왼쪽에 줄 이름 열(numFont × 1.9), 지판 위아래 여백은 줄 간격 × EDGE.
+ * stringGap 은 비 fill 의 줄 간격 배수(7차 C2) — 마크·인레이·글자는 줄 간격 기준이라 같이 커진다. fill 에서는 무시.
  */
-export function layout(n: number, lo: number, hi: number, fill?: { w: number; h: number }): Layout {
+export function layout(n: number, lo: number, hi: number, fill?: { w: number; h: number }, stringGap = 1): Layout {
   const cols = hi - lo + 1
   const padX = 4
-  let cw = 60, sg = 36, numH = 18
+  let cw = 60, sg = fill ? 36 : 36 * stringGap, numH = 18
   const numFontOf = (sg: number) => Math.max(10, Math.min(fill ? 16 : 13, sg * 0.34)) // U6: fill 은 상한 16
   if (fill && fill.w > 0 && fill.h > 0) {
     // 번호 띠 높이가 글자에 비례하므로 2패스

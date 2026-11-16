@@ -65,7 +65,7 @@ export function Fretboard(p: FretboardProps) {
     return () => ro.disconnect()
   }, [])
 
-  const L = layout(n, lo, hi, p.fill ? box : undefined)
+  const L = layout(n, lo, hi, p.fill ? box : undefined, p.fill ? 1 : p.stringGap)
   // 화면 px → viewBox 단위. 첫 렌더(관측 전)는 1
   const scale = (!p.fill && box && Math.min(box.w / L.w, box.h / L.h)) || 1
   const u = (px: number) => px / scale
@@ -103,6 +103,8 @@ export function Fretboard(p: FretboardProps) {
     drawn.add(key)
     const cx = L.cx(f), cy = L.y(s), d = L.markAt(f)
     const cls = `fb-mark${m?.root ? ' root' : ''}${st ? ` st-${st}` : ''}${pressed.current.has(key) ? ' pressed' : ''}`
+    // 따라치기 표적(7차 C8): 마크 바깥 링. .fb-mark 가 아니다(셀렉터 개수 유지)
+    if (st === 'target') markNodes.push(<circle key={`r${key}`} class="fb-ring" cx={cx} cy={cy} r={d / 2 + u(3.5)} {...{ [NS]: 'non-scaling-stroke' }} />)
     markNodes.push(<circle key={`m${key}`} class={cls} cx={cx} cy={cy} r={d / 2} {...{ [NS]: 'non-scaling-stroke' }} />)
     const label = m && p.labelMode !== 'none' ? labelOf(m, p.labelMode, p.accidental) : ''
     if (label) markNodes.push(<text key={`t${key}`} class={cls.replace('fb-mark', 'fb-label')} x={cx} y={cy} dy=".36em" font-size={d * 0.6}>{label}</text>)
@@ -122,8 +124,8 @@ export function Fretboard(p: FretboardProps) {
   const over = Math.min(L.padX, wireW)
   const left = a > 0 ? L.boardX - over : L.boardX, right = L.boardX + L.boardW + over
   const edge = L.sg * 0.07
-  // 옆면(5차 P2): 넥 두께 hn, 보드 위로 솟은 높이 hs. 옆면 SVG 는 y = bottom 선에서 접힌다 — 선 아래가 넥 옆면, 위가 너트 앞면·프렛 끝
-  const hn = L.sg * 0.55, hs = u(HS), sideR = L.sg * 0.075, sideY = L.bottom + hn * 0.42
+  // 옆면(5차 P2): 넥 두께 hn(7차: .55 → .35 — 기울여도 보드가 박스를 채우게, fretboard.css --fb-t), 보드 위로 솟은 높이 hs. 옆면 SVG 는 y = bottom 선에서 접힌다 — 선 아래가 넥 옆면, 위가 너트 앞면·프렛 끝
+  const hn = L.sg * 0.35, hs = u(HS), sideR = L.sg * 0.075, sideY = L.bottom + hn * 0.42
   const side: preact.JSX.Element[] = []
   let nut: preact.JSX.Element | undefined
 
@@ -179,7 +181,7 @@ export function Fretboard(p: FretboardProps) {
 
   const vb = `0 0 ${L.w} ${L.h}`, pct = (v: number) => `${(v / L.h) * 100}%`
   return (
-    <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={tilt > 0 ? 'player' : 'flat'} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': tilt, '--fb-u': 1 / scale, '--fb-hn': hn * scale }}>
+    <div ref={ref} class={`fretboard${p.fill ? ' fill' : ''} ${p.className ?? ''}`} data-view={tilt > 0 ? 'player' : 'flat'} data-tap={p.onTap ? '' : undefined} data-drag={p.drag ? '' : undefined} style={{ '--tilt': tilt, '--fb-u': 1 / scale, '--fb-hn': hn * scale, '--fb-bh': boardH * scale, '--fb-ar': boardH / L.w }}>
       <div class="fb-stage" style={{ transformOrigin: `50% ${pct(L.bottom)}` }}>
         <svg class="fb-base" viewBox={vb} aria-hidden="true">
           <defs>
