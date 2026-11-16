@@ -8,6 +8,7 @@ import type { Str } from '../../core/i18n'
 import { labelOf, midiAt, positions, scaleById, tuningById } from '../../core/music'
 import { playNote, playSequence } from '../../core/audio'
 import { href } from '../../router'
+import { useMedia } from '../../core/device'
 import { haptic } from '../feel'
 import { Fretboard } from '../fretboard/Fretboard'
 import { ScaleBar, OptionsButton } from '../picker/ScaleBar'
@@ -26,19 +27,7 @@ const em = (tpl: string, bold: string | number, vars: Vars = {}) => {
   return <>{fmt(a, vars)}<strong>{bold}</strong>{fmt(b, vars)}</>
 }
 const GAP_MS = 220
-const NARROW = '(max-width: 760px)'
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
-
-/** ≤760 폭이면 true(프렛 창 분할 기준, study.css 의 모바일 분기와 같은 값) */
-function useNarrow(): boolean {
-  const [v, set] = useState(() => matchMedia(NARROW).matches)
-  useEffect(() => {
-    const mq = matchMedia(NARROW), on = () => set(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [])
-  return v
-}
 
 export default function StudyPage({ mode }: { mode: StudyMode }) {
   const s = useSettings()
@@ -130,10 +119,14 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
   else if (mode === 'follow') states = follow.states
   else if (playIdx >= 0) { const m = [...marks].sort((a, b) => a.midi - b.midi)[playIdx]; if (m) states = { [posKey(m)]: 'target' } }
 
-  // 모바일(≤760) 프렛 창: 9칸 넘는 범위는 창으로 나눠 ◂ ▸ 로 넘긴다(StudyPage 로컬). 채점·순서는 포지션 전체 기준 그대로.
+  // 모바일(≤760 또는 가로 폰) 프렛 창: 9칸 넘는 범위는 창으로 나눠 ◂ ▸ 로 넘긴다(StudyPage 로컬). 채점·순서는 포지션 전체 기준 그대로.
   // Fretboard 는 범위 밖 마크·상태를 그리지 않으므로 frets 만 바꾸면 된다. target 이 창 밖이면 그 창으로 자동 이동
-  const narrow = useNarrow()
-  const wins = useMemo(() => (narrow ? fretWindows(pos.frets) : [pos.frets]), [narrow, pos])
+  const narrow = useMedia('(max-width: 760px)') // study.css 의 모바일 분기와 같은 값
+  const portraitPhone = useMedia('(max-width: 760px) and (orientation: portrait)')
+  const landscapePhone = useMedia('(max-height: 500px) and (pointer: coarse)')
+  // 가로 폰(7차 C9)도 창으로 나눈다: 22프렛 전체를 807px 폭에 그리면 높이가 130px 뿐이다
+  const split = narrow || landscapePhone
+  const wins = useMemo(() => (split ? fretWindows(pos.frets) : [pos.frets]), [split, pos])
   const [win, setWin] = useState(0)
   const wi = Math.min(win, wins.length - 1)
   useEffect(() => { setWin(0) }, [pos])
@@ -170,7 +163,7 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
   return (
     <div className="study" data-mode={mode}>
       <header className="study-head">
-        <ScaleBar />
+        <ScaleBar compact={landscapePhone} />
         <div className="study-tools">
         <nav className="seg" aria-label={t(S.modes)}>
           {MODES.map(({ m, label }) => <a key={m} href={href.study(m)} aria-current={m === mode ? 'page' : undefined}>{t(label)}</a>)}
@@ -201,7 +194,7 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
       )}
 
       <div className={`study-board${shake ? ' shake' : ''}`} {...boardEvents}>
-        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} tilt={s.tilt} onTap={onTap} drag={drag} />
+        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} tilt={s.tilt} stringGap={portraitPhone ? 1.45 : undefined} onTap={onTap} drag={drag} />
       </div>
 
       {mode === 'fill' && fill.result && <Summary title={t(S.results)} nums={[[t(S.correct), fill.result.hit, 'ok'], [t(S.wrong), fill.result.miss, 'danger'], [t(S.missed), fill.result.missing]]} line={statsLine(stat, lang)} />}

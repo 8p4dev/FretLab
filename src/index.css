@@ -80,6 +80,9 @@ a, button, summary, [role='button'] { touch-action: manipulation; }
 }
 main { padding: 1.5rem max(1.25rem, env(safe-area-inset-right)) calc(3rem + var(--safe-b)) max(1.25rem, env(safe-area-inset-left)); max-width: 960px; margin: 0 auto; }
 @media (max-width: 760px) { main { padding: 1rem max(.85rem, env(safe-area-inset-right)) calc(2rem + var(--safe-b)) max(.85rem, env(safe-area-inset-left)); } }
+/* 연습 화면만 넓게(7차 C3: PC 에서 22프렛 보드가 화면을 쓰도록). 가로 폰은 위아래 여백을 줄인다(C9) */
+main:has(.study) { max-width: 1360px; }
+@media (max-height: 500px) and (pointer: coarse) { main:has(.study) { padding-top: .5rem; padding-bottom: calc(.5rem + var(--safe-b)); } }
 
 /* ===== 버튼 6종 (01 §3.3 상태표): 기본 · .primary 반전 · .danger · .ok · .ghost(아이콘) · .link ===== */
 button {

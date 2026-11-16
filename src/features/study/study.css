@@ -1,16 +1,24 @@
 /* 연습 화면 — 토큰만. D 소유. 모바일 하단 고정 바는 .study-bar (index.css 가 토스트 위치에 참조) */
 
 /* 상단: ScaleBar + 모드 탭 + 도구 (DrillDown TreeHeader) */
-.study-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+/* 7차 C3: main 은 연습 화면에서 1360 까지 넓어지지만(index.css) 헤더는 960 가운데 — 보드만 넓힌다 */
+.study-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; max-width: 960px; margin: 0 auto 1rem; }
 /* 도구 묶음(모드 탭 + 기울기 + 톱니): 좁으면 ScaleBar 아래 줄로 통째로 내려간다(톱니만 혼자 떨어지지 않게) */
 .study-tools { display: flex; align-items: center; gap: .75rem; flex: 1 1 auto; min-width: 0; }
 .study-head .seg { flex: none; }
 .study-head .seg a { min-height: var(--tap); white-space: nowrap; }
 .study-spacer { flex: 1; }
-/* PC 퀵 기울기(S3): 마우스 + 넓은 폭에서만. 0 = 평면 */
-.study-tilt { display: none; align-items: center; gap: .5rem; font-size: var(--fs-sm); white-space: nowrap; }
+/* 퀵 기울기(S3, 7차 C4: 폰에서도). 0 = 평면 */
+.study-tilt { display: inline-flex; align-items: center; gap: .5rem; font-size: var(--fs-sm); white-space: nowrap; }
 .study-tilt input { width: 7rem; min-height: var(--tap); margin: 0; accent-color: var(--text); }
-@media (hover: hover) and (min-width: 761px) { .study-tilt { display: inline-flex; } }
+/* 전역 input:focus 의 inset 테두리는 range 에서 상자로 남는다(터치 후 계속 보임) → 키보드 포커스에만 외곽선 */
+.study-tilt input:focus { box-shadow: none; }
+.study-tilt input:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+/* 좁은 헤더(폰 세로·가로): 라벨 글자는 숨기고(input 의 aria-label 이 이름) 슬라이더만 짧게 */
+@media (max-width: 760px), (max-height: 500px) and (pointer: coarse) {
+  .study-tilt > span { display: none; }
+  .study-tilt input { width: 4.5rem; }
+}
 
 /* 포지션 줄: ◂ n/N ▸ */
 .study-pos { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: .25rem; margin-bottom: .75rem; font-size: var(--fs-sm); color: var(--text-2); }
@@ -70,4 +78,11 @@
 @media (max-height: 500px) and (pointer: coarse) {
   .study-bar { position: static; padding: 0; margin-top: 1rem; border: 0; background: none; }
   .study { padding-bottom: 0; }
+  /* 7차 C9: 헤더 한 줄(ScaleBar compact) + 여백 축소, 보드는 남는 높이를 쓴다(fretboard.css 의 45vh 상한은 가로 폰에서 175px 뿐) */
+  .study-head { flex-wrap: nowrap; margin-bottom: .5rem; }
+  .study-head .scale-bar { flex: 0 1 auto; min-width: 0; min-height: var(--tap); }
+  .study-tools { flex: 1 0 auto; }
+  .study-pos { margin-bottom: .25rem; }
+  .study-board { margin-bottom: .5rem; }
+  .study-board .fretboard .fb-base { max-height: max(200px, calc(100dvh - 11rem)); }
 }
