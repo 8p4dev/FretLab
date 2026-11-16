@@ -94,6 +94,7 @@ export function Fretboard(p: FretboardProps) {
   const onUp = (e: PointerEvent) => { dragSeen.current.delete(e.pointerId) }
 
   // 마크(원) + 마크 없는 자리의 state(라벨 없는 마커)
+  const ry = (s: number) => (L.bottom - L.y(s)) / (L.bottom - L.top)
   const marked = new Set<string>()
   const drawn = new Set<string>()
   const markNodes: preact.JSX.Element[] = []
@@ -102,12 +103,13 @@ export function Fretboard(p: FretboardProps) {
     const key = `${s}:${f}`
     drawn.add(key)
     const cx = L.cx(f), cy = L.y(s), d = L.markAt(f)
+    const row = { '--fb-y': ry(s) } // 연주자 시점 원근 보정용 줄 위치(0 가까운 쪽 ~ 1 먼 쪽)
     const cls = `fb-mark${m?.root ? ' root' : ''}${st ? ` st-${st}` : ''}${pressed.current.has(key) ? ' pressed' : ''}`
     // 따라치기 표적(7차 C8): 마크 바깥 링. .fb-mark 가 아니다(셀렉터 개수 유지)
-    if (st === 'target') markNodes.push(<circle key={`r${key}`} class="fb-ring" cx={cx} cy={cy} r={d / 2 + u(3.5)} {...{ [NS]: 'non-scaling-stroke' }} />)
-    markNodes.push(<circle key={`m${key}`} class={cls} cx={cx} cy={cy} r={d / 2} {...{ [NS]: 'non-scaling-stroke' }} />)
+    if (st === 'target') markNodes.push(<circle key={`r${key}`} class="fb-ring" style={row} cx={cx} cy={cy} r={d / 2 + u(3.5)} {...{ [NS]: 'non-scaling-stroke' }} />)
+    markNodes.push(<circle key={`m${key}`} class={cls} style={row} cx={cx} cy={cy} r={d / 2} {...{ [NS]: 'non-scaling-stroke' }} />)
     const label = m && p.labelMode !== 'none' ? labelOf(m, p.labelMode, p.accidental) : ''
-    if (label) markNodes.push(<text key={`t${key}`} class={cls.replace('fb-mark', 'fb-label')} x={cx} y={cy} dy=".36em" font-size={d * 0.6}>{label}</text>)
+    if (label) markNodes.push(<text key={`t${key}`} class={cls.replace('fb-mark', 'fb-label')} style={row} x={cx} y={cy} dy=".36em" font-size={d * 0.6}>{label}</text>)
   }
   for (const m of p.marks) { marked.add(posKey(m)); pushMark(m.string, m.fret, m, states[posKey(m)]) }
   for (const k in states) {
@@ -176,7 +178,7 @@ export function Fretboard(p: FretboardProps) {
   })
   // U1 줄 이름 열: 개방 셀(lo=0) 또는 지판 왼쪽 끝(lo>0) 왼편
   const names = p.tuning.strings.map((open, s) => (
-    <text key={`sn${s}`} class="fb-string-name" x={sx - 4} y={L.y(s)} dy=".36em" font-size={L.numFont}>{noteName(midiToPc(open), p.accidental)}</text>
+    <text key={`sn${s}`} class="fb-string-name" style={{ '--fb-y': ry(s) }} x={sx - 4} y={L.y(s)} dy=".36em" font-size={L.numFont}>{noteName(midiToPc(open), p.accidental)}</text>
   ))
 
   const vb = `0 0 ${L.w} ${L.h}`, pct = (v: number) => `${(v / L.h) * 100}%`
