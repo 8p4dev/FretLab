@@ -91,10 +91,10 @@
    늘어난 평면 깊이 k × bh × sin 에서 그 축소가 나오는 거리가 perspective.
    화면 줄 간격 = 평면 × t(1+d)/(1+d·y)^2 (y: 0 가까운 줄 ~ 1 먼 가장자리) ≥ .9, 마크 세로/가로 = t(1+d)/(1+d·y) ≈ .95~1 이라 보정(--fb-sy)은 4% 면 된다 */
 .fretboard[data-view='player'] {
-  --fb-e: clamp(.12, var(--fb-ar) * .6, .22); /* 먼 쪽 축소 12~22%: 기울인 느낌은 이전(perspective 2000px) 이상으로, 넓은 보드는 끝 글자 전단 때문에 약하게 */
+  --fb-e: clamp(.12, var(--fb-ar) * .75, .5); /* 먼 쪽 축소 12~50%: 짧은 보드(폰 창·CAGED)는 PC 22프렛처럼 길게 누워 보이도록 강하게, 넓은 보드는 끝 글자 전단 때문에 약하게 */
   --fb-d: calc(sin(var(--fb-a)) * var(--fb-e));
   --fb-t: calc(1 - sin(var(--fb-a)) * var(--fb-hn) / var(--fb-bh));
   --fb-k: calc(var(--fb-t) * (1 + var(--fb-d)) / cos(var(--fb-a)));
 }
 .fretboard[data-view='player'] .fb-stage { transform: translateY(calc(sin(var(--fb-a)) * var(--fb-hn) * -1px)) perspective(calc(var(--fb-k) * var(--fb-bh) / var(--fb-e) * 1px)) rotateX(var(--fb-a)) scaleY(var(--fb-k)); }
-.fretboard[data-view='player'] :is(.fb-mark, .fb-ring, .fb-label, .fb-string-name) { transform-box: fill-box; transform-origin: center; transform: scaleY(calc(1.03 * (1 + var(--fb-d) * var(--fb-y, .5)) / (var(--fb-t) * (1 + var(--fb-d))))); transition: transform var(--t-slow) var(--ease-out); } /* 줄마다(--fb-y: 0 가까운 쪽 ~ 1 먼 쪽) 원근 세로 늘림 t(1+d)/(1+d·y) 를 되돌려 마크가 원으로(실측 .98~1.04, 1.03 은 실측 보정) */
+.fretboard[data-view='player'] :is(.fb-mark, .fb-ring, .fb-label, .fb-string-name) { transform-box: fill-box; transform-origin: center; transform: scaleY(calc((1.03 + var(--fb-d) * .1) * (1 + var(--fb-d) * var(--fb-y, .5)) / (var(--fb-t) * (1 + var(--fb-d))))); transition: transform var(--t-slow) var(--ease-out); } /* 줄마다(--fb-y: 0 가까운 쪽 ~ 1 먼 쪽) 원근 세로 늘림 t(1+d)/(1+d·y) 를 되돌려 마크가 원으로(1.03 + .1d 는 실측 보정, 결과 .98~1.02) */
