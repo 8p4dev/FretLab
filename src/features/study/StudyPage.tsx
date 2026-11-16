@@ -194,7 +194,7 @@ export default function StudyPage({ mode }: { mode: StudyMode }) {
       )}
 
       <div className={`study-board${shake ? ' shake' : ''}`} {...boardEvents}>
-        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} tilt={s.tilt} stringGap={portraitPhone ? 1.45 : undefined} onTap={onTap} drag={drag} />
+        <Fretboard tuning={tuning} frets={wins[wi]} marks={shown} states={states} labelMode={s.labelMode} accidental={s.accidental} tilt={s.tilt} stringGap={portraitPhone ? 1.6 : undefined} onTap={onTap} drag={drag} />
       </div>
 
       {mode === 'fill' && fill.result && <Summary title={t(S.results)} nums={[[t(S.correct), fill.result.hit, 'ok'], [t(S.wrong), fill.result.miss, 'danger'], [t(S.missed), fill.result.missing]]} line={statsLine(stat, lang)} />}
